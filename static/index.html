@@ -52,6 +52,18 @@
 
         <!-- Left Column: Strategy and Vitals -->
         <aside class="hud-element sidebar left-sidebar">
+            <section class="hud-panel vital-panel">
+                <h2>ROSTER TELEMETRY</h2>
+                <div class="player-roster" id="blue-roster">
+                    <div class="roster-team-title neon-text-blue">TEAM BLUE</div>
+                    <!-- Dynamically populated -->
+                </div>
+                <div class="player-roster" id="orange-roster">
+                    <div class="roster-team-title neon-text-orange">TEAM ORANGE</div>
+                    <!-- Dynamically populated -->
+                </div>
+            </section>
+
             <section class="hud-panel strategies-panel">
                 <h2>TACTICAL SECTOR</h2>
                 
@@ -65,18 +77,6 @@
                     <h3>ORANGE TEAM STRATEGY: <span id="orange-strategy-title" class="strategy-badge">LOADING...</span></h3>
                     <p id="orange-strategy-rationale" class="strategy-desc">Retrieving parameters from Tactical Core...</p>
                     <div class="strategy-source">Source: <span id="orange-strategy-source">Tactical Advisor</span></div>
-                </div>
-            </section>
-
-            <section class="hud-panel vital-panel">
-                <h2>ROSTER TELEMETRY</h2>
-                <div class="player-roster" id="blue-roster">
-                    <div class="roster-team-title neon-text-blue">TEAM BLUE</div>
-                    <!-- Dynamically populated -->
-                </div>
-                <div class="player-roster" id="orange-roster">
-                    <div class="roster-team-title neon-text-orange">TEAM ORANGE</div>
-                    <!-- Dynamically populated -->
                 </div>
             </section>
         </aside>
@@ -206,6 +206,6 @@
         </div>
     </div>
 
-     <script src="/static/js/game.js?v=16"></script>
+     <script src="/static/js/game.js?v=17"></script>
 </body>
 </html>

@@ -329,10 +329,15 @@ class Player:
         
         # Check for survival first
         health_ratio = (self.hp + self.shield) / (self.max_hp + self.max_shield)
+        was_retreating = self.state == "RETREAT"
+        ally_has_flag = any(a.has_flag for a in allies)
         
         # 1. State Transitions
         if self.has_flag:
             self.state = "RUN_FLAG"
+        elif was_retreating and health_ratio < 0.90:
+            # Hysteresis: Stay in RETREAT until mostly healed (90% HP + Shield)
+            self.state = "RETREAT"
         elif not ally_flag["at_base"]:
             # Stalker and Enforcer should fight to the death to recover the flag (no retreat).
             # Tacticians can still retreat to preserve healing potential.
@@ -345,6 +350,9 @@ class Player:
         elif self.class_type == "Tactician" and any((a.hp / a.max_hp) < 0.6 for a in allies):
             # Tacticians focus on low-health allies
             self.state = "HEAL_ALLIED"
+        elif ally_has_flag:
+            # If an ally has the enemy flag, join the push to defend them
+            self.state = "INFILTRATE"
         elif self.class_type == "Enforcer" and defense_mod > 1.2:
             # Turtle Heavy stays home
             self.state = "PATROL"
@@ -438,6 +446,11 @@ class Player:
                     # Guard base
                     target_x = np.clip(self.spawn_pos[0] + float(random.randint(-15, 15)), -95.0, 95.0)
                     target_y = np.clip(self.spawn_pos[1] + float(random.randint(-15, 15)), -95.0, 95.0)
+                    self.target_pos = np.array([target_x, target_y, 0.0])
+                elif self.class_type == "Tactician":
+                    # Stay near base to heal returning allies
+                    target_x = np.clip(self.spawn_pos[0] + float(random.randint(-20, 20)), -95.0, 95.0)
+                    target_y = np.clip(self.spawn_pos[1] + float(random.randint(-20, 20)), -95.0, 95.0)
                     self.target_pos = np.array([target_x, target_y, 0.0])
                 else:
                     # Patrol mid heights

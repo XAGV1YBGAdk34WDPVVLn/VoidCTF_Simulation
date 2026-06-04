@@ -304,10 +304,15 @@ impl Player {
         let retreat_thresh = strat_mods.get("retreat_threshold").and_then(|v| v.as_f64()).unwrap_or(0.35) as f32;
 
         let health_ratio = (self.hp + self.shield) / (self.max_hp + self.max_shield);
+        let was_retreating = self.state == "RETREAT";
+        let ally_has_flag = allies.iter().any(|a| a.has_flag);
 
         // 1. State Transitions
         if self.has_flag {
             self.state = "RUN_FLAG".to_string();
+        } else if was_retreating && health_ratio < 0.90 {
+            // Hysteresis: Stay in RETREAT until mostly healed (90% HP + Shield)
+            self.state = "RETREAT".to_string();
         } else if !ally_flag.get("at_base").and_then(|v| v.as_bool()).unwrap_or(true) {
             // Stalker and Enforcer should fight to the death to recover the flag (no retreat).
             // Tacticians can still retreat to preserve healing potential.
@@ -320,6 +325,9 @@ impl Player {
             self.state = "RETREAT".to_string();
         } else if self.class_type == "Tactician" && allies.iter().any(|a| (a.hp / a.max_hp) < 0.6) {
             self.state = "HEAL_ALLIED".to_string();
+        } else if ally_has_flag {
+            // If an ally has the enemy flag, join the push to defend them
+            self.state = "INFILTRATE".to_string();
         } else if self.class_type == "Enforcer" && defense_mod > 1.2 {
             self.state = "PATROL".to_string();
         } else if self.class_type == "Stalker" || offense_mod > 1.2 {
@@ -418,6 +426,10 @@ impl Player {
                 if self.class_type == "Enforcer" {
                     let target_x = (self.spawn_pos[0] + rng.gen_range(-15.0..15.0)).clamp(-95.0, 95.0);
                     let target_y = (self.spawn_pos[1] + rng.gen_range(-15.0..15.0)).clamp(-95.0, 95.0);
+                    self.target_pos = [target_x, target_y, 0.0];
+                } else if self.class_type == "Tactician" {
+                    let target_x = (self.spawn_pos[0] + rng.gen_range(-20.0..20.0)).clamp(-95.0, 95.0);
+                    let target_y = (self.spawn_pos[1] + rng.gen_range(-20.0..20.0)).clamp(-95.0, 95.0);
                     self.target_pos = [target_x, target_y, 0.0];
                 } else {
                     self.target_pos = [

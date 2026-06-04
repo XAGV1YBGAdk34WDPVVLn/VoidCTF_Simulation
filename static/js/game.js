@@ -849,12 +849,142 @@ function updateProjectiles(projectiles, serverTime) {
             group.rotation.x = Math.PI / 2; // Lie flat
             scene.add(group);
             
-            projObj = { mesh: group, targetPos: targetPos, vel: proj.vel };
+            // Let's create a ribbon trail for the projectile!
+            const trailMaxPoints = 12;
+            const trailGeom = new THREE.BufferGeometry();
+            const trailVertices = new Float32Array(trailMaxPoints * 4 * 3);
+            trailGeom.setAttribute("position", new THREE.BufferAttribute(trailVertices, 3));
+            
+            const trailColors = new Float32Array(trailMaxPoints * 4 * 4);
+            trailGeom.setAttribute("color", new THREE.BufferAttribute(trailColors, 4));
+            
+            const trailIndices = [];
+            for (let i = 0; i < trailMaxPoints - 1; i++) {
+                const bl = 4 * i;
+                const br = 4 * i + 1;
+                const tl = 4 * i + 2;
+                const tr = 4 * i + 3;
+                
+                const bl_next = 4 * (i + 1);
+                const br_next = 4 * (i + 1) + 1;
+                const tl_next = 4 * (i + 1) + 2;
+                const tr_next = 4 * (i + 1) + 3;
+                
+                // Bottom-to-Top Face / Sides
+                trailIndices.push(bl, bl_next, tl);
+                trailIndices.push(tl, bl_next, tl_next);
+                
+                trailIndices.push(br_next, br, tr_next);
+                trailIndices.push(tr_next, br, tr);
+                
+                // Top Flat Face
+                trailIndices.push(tr, tr_next, tl);
+                trailIndices.push(tl, tr_next, tl_next);
+            }
+            trailGeom.setIndex(trailIndices);
+            
+            const trailMat = new THREE.MeshBasicMaterial({
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8,
+                side: THREE.DoubleSide,
+                depthWrite: false
+            });
+            const trailMesh = new THREE.Mesh(trailGeom, trailMat);
+            scene.add(trailMesh);
+            
+            projObj = { 
+                mesh: group, 
+                targetPos: targetPos.clone(), 
+                vel: proj.vel,
+                trailMesh: trailMesh,
+                trailPoints: [targetPos.clone()],
+                lastPos: targetPos.clone()
+            };
             meshCache.projectiles[proj.id] = projObj;
         }
 
         // Set position directly from interpolated target position
         projObj.mesh.position.copy(targetPos);
+
+        // Record projectile movement history for trail points
+        if (!projObj.lastPos.equals(targetPos)) {
+            projObj.trailPoints.push(targetPos.clone());
+            if (projObj.trailPoints.length > 12) {
+                projObj.trailPoints.shift();
+            }
+            projObj.lastPos.copy(targetPos);
+        }
+
+        // Update trail buffer geometry and opacity gradient
+        const trailPositions = projObj.trailMesh.geometry.attributes.position.array;
+        const trailColors = projObj.trailMesh.geometry.attributes.color.array;
+        const pointsCount = projObj.trailPoints.length;
+        const color = new THREE.Color(TEAM_COLORS[proj.team]);
+        const trailMaxPoints = 12;
+
+        for (let i = 0; i < trailMaxPoints; i++) {
+            const pt = projObj.trailPoints[Math.min(i, pointsCount - 1)] || targetPos;
+            
+            // Calculate normal vector perpendicular to projectile trajectory in X-Z plane
+            const prevIdx = Math.max(0, i - 1);
+            const nextIdx = Math.min(pointsCount - 1, i + 1);
+            const prevPt = projObj.trailPoints[prevIdx] || targetPos;
+            const nextPt = projObj.trailPoints[nextIdx] || targetPos;
+            
+            let dx = nextPt.x - prevPt.x;
+            let dz = nextPt.z - prevPt.z;
+            let len = Math.sqrt(dx * dx + dz * dz);
+            
+            let nx = 1.0;
+            let nz = 0.0;
+            if (len > 0.001) {
+                nx = -dz / len;
+                nz = dx / len;
+            } else if (projObj.vel) {
+                let v_len = Math.sqrt(projObj.vel[0] * projObj.vel[0] + projObj.vel[1] * projObj.vel[1]);
+                if (v_len > 0.001) {
+                    nx = -projObj.vel[1] / v_len;
+                    nz = projObj.vel[0] / v_len;
+                }
+            }
+            
+            const width = 0.35;       // Trail width slightly smaller than disk torus radius (0.8)
+            const heightHalf = 0.03;  // Thin vertical thickness for flat light discs
+            const baseIdx = 12 * i;
+            
+            // Bottom-Left
+            trailPositions[baseIdx] = pt.x + nx * width;
+            trailPositions[baseIdx + 1] = pt.y - heightHalf;
+            trailPositions[baseIdx + 2] = pt.z + nz * width;
+            
+            // Bottom-Right
+            trailPositions[baseIdx + 3] = pt.x - nx * width;
+            trailPositions[baseIdx + 4] = pt.y - heightHalf;
+            trailPositions[baseIdx + 5] = pt.z - nz * width;
+            
+            // Top-Left
+            trailPositions[baseIdx + 6] = pt.x + nx * width;
+            trailPositions[baseIdx + 7] = pt.y + heightHalf;
+            trailPositions[baseIdx + 8] = pt.z + nz * width;
+            
+            // Top-Right
+            trailPositions[baseIdx + 9] = pt.x - nx * width;
+            trailPositions[baseIdx + 10] = pt.y + heightHalf;
+            trailPositions[baseIdx + 11] = pt.z - nz * width;
+            
+            // Color and opacity gradient (fading to 0 at index 0)
+            const alpha = i / (trailMaxPoints - 1);
+            for (let v = 0; v < 4; v++) {
+                const colorIdx = 16 * i + 4 * v;
+                trailColors[colorIdx] = color.r;
+                trailColors[colorIdx + 1] = color.g;
+                trailColors[colorIdx + 2] = color.b;
+                trailColors[colorIdx + 3] = alpha * 0.75; // Max opacity 0.75
+            }
+        }
+        projObj.trailMesh.geometry.attributes.position.needsUpdate = true;
+        projObj.trailMesh.geometry.attributes.color.needsUpdate = true;
 
         // Save dynamic target position for reference
         projObj.targetPos = targetPos;
@@ -868,6 +998,7 @@ function updateProjectiles(projectiles, serverTime) {
         if (!match) {
             // Impact animation splash
             const mesh = meshCache.projectiles[id].mesh;
+            const trailMesh = meshCache.projectiles[id].trailMesh;
             let colorHex = 0xffffff;
             if (mesh.material && mesh.material.color) {
                 colorHex = mesh.material.color.getHex();
@@ -876,6 +1007,9 @@ function updateProjectiles(projectiles, serverTime) {
             }
             spawnDeRezExplosion(mesh.position, colorHex, 8);
             scene.remove(mesh);
+            if (trailMesh) {
+                scene.remove(trailMesh);
+            }
             delete meshCache.projectiles[id];
         }
     });

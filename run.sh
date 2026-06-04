@@ -7,19 +7,12 @@ cd "$DIR"
 
 echo "=== VOID GRID CTF INITIALIZER ==="
 
-if [ ! -d "venv" ]; then
-    echo "Virtual environment not found. Building..."
-    python3 -m venv venv
-    source venv/bin/activate
-    pip install --upgrade pip
-    pip install tornado numpy requests
-else
-    source venv/bin/activate
-fi
-# Setup is complete, launching Tornado server
+# Build the Rust application to make sure it is up to date
+echo "Compiling Void Grid server..."
+cargo build --release
 
-echo "Launching Tornado server at http://localhost:8080/"
+echo "Launching Void Grid Rust server at http://localhost:8080/"
 echo "Open your browser to start the simulation!"
 echo "Press Ctrl+C to shutdown grid."
 
-python server.py
+./target/release/voidgrid

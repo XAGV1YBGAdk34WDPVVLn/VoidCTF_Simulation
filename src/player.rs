@@ -320,8 +320,9 @@ impl Player {
         // 1. State Transitions
         if self.has_flag {
             self.state = "RUN_FLAG".to_string();
-        } else if was_retreating && health_ratio < 0.90 {
+        } else if was_retreating && health_ratio < 0.90 && (self.class_type == "Tactician" || ally_flag.get("at_base").and_then(|v| v.as_bool()).unwrap_or(true)) {
             // Hysteresis: Stay in RETREAT until mostly healed (90% HP + Shield)
+            // Stalker and Enforcer will abort retreat immediately if the flag is stolen!
             self.state = "RETREAT".to_string();
         } else if !ally_flag.get("at_base").and_then(|v| v.as_bool()).unwrap_or(true) {
             // Stalker and Enforcer should fight to the death to recover the flag (no retreat).
@@ -572,7 +573,7 @@ impl Player {
                         (r_z_max - player_z).abs() < 2.0
                     };
                     
-                    let helps_direction = if target_z > player_z {
+                    let helps_direction = player_on_ramp || if target_z > player_z {
                         r_z_max > player_z + 1.0
                     } else {
                         r_z_min < player_z - 1.0

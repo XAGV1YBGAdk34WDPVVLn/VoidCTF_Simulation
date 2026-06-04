@@ -863,7 +863,13 @@ function updateProjectiles(projectiles, serverTime) {
         if (!match) {
             // Impact animation splash
             const mesh = meshCache.projectiles[id].mesh;
-            spawnDeRezExplosion(mesh.position, mesh.material.color.getHex(), 8);
+            let colorHex = 0xffffff;
+            if (mesh.material && mesh.material.color) {
+                colorHex = mesh.material.color.getHex();
+            } else if (mesh.children && mesh.children[0] && mesh.children[0].material) {
+                colorHex = mesh.children[0].material.color.getHex();
+            }
+            spawnDeRezExplosion(mesh.position, colorHex, 8);
             scene.remove(mesh);
             delete meshCache.projectiles[id];
         }

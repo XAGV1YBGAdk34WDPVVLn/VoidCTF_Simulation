@@ -560,7 +560,26 @@ impl Player {
             }
         }
 
-        let desired_vel = math::add(math::scale(dir_vec, current_speed), avoidance_force);
+        // Evade enemies when carrying the flag or retreating by applying a lateral avoidance push
+        let mut enemy_avoidance = [0.0, 0.0, 0.0];
+        if self.has_flag || self.state == "RETREAT" {
+            for e in &enemies {
+                let to_enemy = math::sub(self.pos, e.pos);
+                let e_dist = math::length(to_enemy);
+                if e_dist < 28.0 { // Evade range
+                    let mut dir_away = [to_enemy[0], to_enemy[1], 0.0];
+                    let dir_len = math::length(dir_away);
+                    if dir_len > 0.001 {
+                        dir_away = math::scale(dir_away, 1.0 / dir_len);
+                        // Scale push inversely proportional to distance, maxing out at 15.0
+                        let force_scale = (12.0 / (e_dist + 0.1)).min(15.0);
+                        enemy_avoidance = math::add(enemy_avoidance, math::scale(dir_away, force_scale));
+                    }
+                }
+            }
+        }
+
+        let desired_vel = math::add(math::add(math::scale(dir_vec, current_speed), avoidance_force), enemy_avoidance);
         self.vel = math::add(math::scale(self.vel, 0.7), math::scale(desired_vel, 0.3));
 
         // Update position

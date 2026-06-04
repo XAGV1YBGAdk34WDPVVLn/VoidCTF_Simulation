@@ -198,6 +198,7 @@ class Player:
         self.respawn_timer = 0.0
         self.ability_cooldown = 0.0
         self.ability_active_timer = 0.0
+        self.overcharge_timer = 0.0
         
         # AI Control States
         self.state = "SPAWNING"  # SPAWNING, PATROL, INFILTRATE, ESCORT, RETREAT, HEAL_ALLIED
@@ -269,6 +270,7 @@ class Player:
         self.state = "PATROL"
         self.disc_cooldown = 0.0
         self.ability_cooldown = 0.0
+        self.overcharge_timer = 0.0
         self.has_flag = False
 
     def heal(self, amount: float):
@@ -298,6 +300,8 @@ class Player:
             self.disc_cooldown = max(0.0, self.disc_cooldown - dt)
         if self.ability_cooldown > 0:
             self.ability_cooldown = max(0.0, self.ability_cooldown - dt)
+        if self.overcharge_timer > 0.0:
+            self.overcharge_timer = max(0.0, self.overcharge_timer - dt)
             
         # Ability active timers
         if self.ability_active_timer > 0:
@@ -541,6 +545,14 @@ class Player:
                     else:
                         routing_target = np.array([31.0, 0.0, 12.0])
 
+        # Add dynamic, ID-based spread offsets to keep teammates from mimicking each other or stacking
+        spread_angle = (self.id * 1.5) + (self.pos[0] * 0.05) + (self.pos[1] * 0.05)
+        spread_dist = 1.5 if self.state == "RUN_FLAG" else 3.5
+        routing_target[0] += np.cos(spread_angle) * spread_dist
+        routing_target[1] += np.sin(spread_angle) * spread_dist
+        routing_target[0] = np.clip(routing_target[0], -95.0, 95.0)
+        routing_target[1] = np.clip(routing_target[1], -95.0, 95.0)
+
         # Navigation waypoint routing around buildings
         nav_target = get_navigation_target(self.pos, routing_target, game_state.map_layout["buildings"], game_state.map_layout.get("platforms"))
         to_target = nav_target - self.pos
@@ -553,7 +565,8 @@ class Player:
         elif self.is_shielding:
             speed_mult = 0.5
             
-        current_speed = self.base_speed * speed_mult
+        overcharge_mult = 1.3 if self.overcharge_timer > 0.0 else 1.0
+        current_speed = self.base_speed * speed_mult * overcharge_mult
         
         # Determine if we should slow down (only do this near the ultimate destination, not at intermediate corners)
         target_distance = np.linalg.norm(self.target_pos - self.pos)
@@ -577,8 +590,32 @@ class Player:
                     if self.pos[2] >= b["z"] and self.pos[2] <= b["z"] + b["h"]:
                         avoidance_force += (to_building / (b_dist + 0.01)) * 5.0
 
+            # Evade enemies when carrying the flag or retreating by applying a lateral avoidance push
+            enemy_avoidance = np.array([0.0, 0.0, 0.0])
+            if self.has_flag or self.state == "RETREAT":
+                for e in enemies:
+                    to_enemy = self.pos - e.pos
+                    e_dist = np.linalg.norm(to_enemy)
+                    if e_dist < 28.0: # Evade range
+                        dir_away = np.array([to_enemy[0], to_enemy[1], 0.0])
+                        dir_len = np.linalg.norm(dir_away)
+                        if dir_len > 0.001:
+                            dir_away = dir_away / dir_len
+                            # Scale push inversely proportional to distance, maxing out at 15.0
+                            force_scale = min(15.0, 12.0 / (e_dist + 0.1))
+                            enemy_avoidance += dir_away * force_scale
+
+            # Wander noise to simulate human-like micro-corrections and break absolute symmetry
+            noise_time = (self.id * 12.34) + (self.pos[0] * 0.1) + (self.pos[1] * 0.1)
+            wander_strength = 1.2 # slight sway
+            wander_force = np.array([
+                np.cos(noise_time) * wander_strength,
+                np.sin(noise_time * 1.5) * wander_strength,
+                0.0
+            ])
+
             # Combined steering
-            desired_vel = dir_vec * current_speed + avoidance_force
+            desired_vel = dir_vec * current_speed + avoidance_force + enemy_avoidance + wander_force
             # Apply interpolation to velocity
             self.vel = 0.7 * self.vel + 0.3 * desired_vel
         else:
@@ -783,5 +820,6 @@ class Player:
             "is_dashing": self.is_dashing,
             "is_shielding": self.is_shielding,
             "healing_target_id": self.healing_target_id,
-            "is_taking_cover": self.is_taking_cover
+            "is_taking_cover": self.is_taking_cover,
+            "overcharge_timer": round(self.overcharge_timer, 2)
         }

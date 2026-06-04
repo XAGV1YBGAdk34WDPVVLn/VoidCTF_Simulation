@@ -57,6 +57,18 @@ class GameEngine:
         self.audit_loading = False
         self.sim_time = 0.0
 
+        # Midfield overcharge node initialization
+        node_z = 0.0
+        for p in self.map_layout.get("platforms", []):
+            if p["x"] <= 0.0 <= p["x"] + p["w"] and p["y"] <= 0.0 <= p["y"] + p["d"]:
+                node_z = p["z"]
+                break
+        self.overcharge_node = {
+            "pos": [0.0, 0.0, node_z],
+            "active": True,
+            "respawn_timer": 0.0
+        }
+
     def init_players(self):
         # 3 Blue Players
         blue_spawns = self.map_layout["spawns"]["blue"]
@@ -136,6 +148,18 @@ class GameEngine:
         self.flags["orange"]["pos"] = list(self.map_layout["bases"]["orange"]["pos"])
         self.flags["orange"]["at_base"] = True
         
+        # Reset midfield overcharge node
+        node_z = 0.0
+        for p in self.map_layout.get("platforms", []):
+            if p["x"] <= 0.0 <= p["x"] + p["w"] and p["y"] <= 0.0 <= p["y"] + p["d"]:
+                node_z = p["z"]
+                break
+        self.overcharge_node = {
+            "pos": [0.0, 0.0, node_z],
+            "active": True,
+            "respawn_timer": 0.0
+        }
+
         self.log_event("Grid rebooted. Preparing match parameters...")
 
     def update(self, dt: float, time_now: float):
@@ -150,6 +174,35 @@ class GameEngine:
                 
         elif self.state == "RUNNING":
             self.match_time -= dt
+
+            # Update overcharge node
+            active = self.overcharge_node.get("active", False)
+            respawn_timer = self.overcharge_node.get("respawn_timer", 0.0)
+            node_pos = self.overcharge_node["pos"]
+            
+            if not active:
+                respawn_timer -= dt
+                if respawn_timer <= 0.0:
+                    active = True
+                    respawn_timer = 0.0
+                    self.log_event("MIDFIELD OVERCHARGE NODE spawned!")
+                    
+            if active:
+                for p in self.players.values():
+                    if p.is_alive:
+                        h_dist = np.linalg.norm(p.pos[:2] - np.array(node_pos[:2]))
+                        v_dist = abs(p.pos[2] - node_pos[2])
+                        if h_dist < 4.0 and v_dist < 4.0:
+                            p.overcharge_timer = 6.0
+                            p.shield = p.max_shield * 1.5
+                            active = False
+                            respawn_timer = 30.0
+                            self.log_event(f"{p.name} picked up the MIDFIELD OVERCHARGE!")
+                            break
+                            
+            self.overcharge_node["active"] = active
+            self.overcharge_node["respawn_timer"] = respawn_timer
+
             if self.match_time <= 0:
                 self.end_match()
                 return
@@ -179,15 +232,27 @@ class GameEngine:
             
             # Move projectile
             new_pos = pos + vel * dt
-            proj["range_left"] -= np.linalg.norm(vel * dt)
-            proj["pos"] = new_pos.tolist()
+            delta_move_len = np.linalg.norm(vel * dt)
+            proj["range_left"] -= delta_move_len
             
-            # Collision status
+            bounces = proj.get("bounces", 0)
             hit = False
             
             # 1. Map boundaries check
-            if abs(new_pos[0]) > 99 or abs(new_pos[1]) > 99:
-                hit = True
+            if abs(new_pos[0]) > 99.0:
+                if bounces < 2:
+                    vel[0] = -vel[0]
+                    new_pos[0] = 99.0 if new_pos[0] > 0 else -99.0
+                    bounces += 1
+                else:
+                    hit = True
+            if not hit and abs(new_pos[1]) > 99.0:
+                if bounces < 2:
+                    vel[1] = -vel[1]
+                    new_pos[1] = 99.0 if new_pos[1] > 0 else -99.0
+                    bounces += 1
+                else:
+                    hit = True
                 
             # 2. Buildings (obstacles) collisions
             if not hit:
@@ -196,7 +261,23 @@ class GameEngine:
                     bx, by, bw, bd, bz, bh = b["x"], b["y"], b["w"], b["d"], b["z"], b["h"]
                     if bx <= new_pos[0] <= bx + bw and by <= new_pos[1] <= by + bd:
                         if bz <= new_pos[2] <= bz + bh:
-                            hit = True
+                            if bounces < 2:
+                                crossed_x = pos[0] < bx or pos[0] > bx + bw
+                                crossed_y = pos[1] < by or pos[1] > by + bd
+                                if crossed_x and not crossed_y:
+                                    vel[0] = -vel[0]
+                                    new_pos[0] = bx + bw + 0.05 if vel[0] > 0 else bx - 0.05
+                                elif crossed_y and not crossed_x:
+                                    vel[1] = -vel[1]
+                                    new_pos[1] = by + bd + 0.05 if vel[1] > 0 else by - 0.05
+                                else:
+                                    vel[0] = -vel[0]
+                                    vel[1] = -vel[1]
+                                    new_pos[0] = bx + bw + 0.05 if vel[0] > 0 else bx - 0.05
+                                    new_pos[1] = by + bd + 0.05 if vel[1] > 0 else by - 0.05
+                                bounces += 1
+                            else:
+                                hit = True
                             break
                             
             # 3. Player collisions
@@ -233,6 +314,9 @@ class GameEngine:
                 
             # Keep projectile if it didn't impact anything
             if not hit:
+                proj["pos"] = new_pos.tolist()
+                proj["vel"] = vel.tolist()
+                proj["bounces"] = bounces
                 active_projectiles.append(proj)
                 
         self.projectiles = active_projectiles
@@ -327,6 +411,23 @@ class GameEngine:
                     # Allied flag is stolen, cannot score yet!
                     pass
 
+        # Check for comeback strategy shift
+        if self.scores["blue"] == 2 and self.scores["orange"] == 0:
+            if self.tactics["orange"]["strategy"] != "RUSH":
+                self.trigger_comeback("orange")
+        elif self.scores["orange"] == 2 and self.scores["blue"] == 0:
+            if self.tactics["blue"]["strategy"] != "RUSH":
+                self.trigger_comeback("blue")
+
+    def trigger_comeback(self, team: str):
+        self.log_event(f"TACTICAL SHIFT: {team.upper()} Team triggers COMEBACK strategy: RUSH!")
+        for p in self.players.values():
+            if p.team == team:
+                p.strategy = "RUSH"
+        self.tactics[team]["strategy"] = "RUSH"
+        self.tactics[team]["rationale"] = "Auto-triggered fallback due to 2-0 score deficit."
+        self.tactics[team]["source"] = "Engine"
+
     def end_match(self, winner: str = None):
         self.state = "POSTGAME"
         self.end_time = time.time()
@@ -380,5 +481,6 @@ class GameEngine:
             "audit_report": self.audit_report,
             "audit_loading": self.audit_loading,
             "sim_time": self.sim_time,
+            "overcharge_node": self.overcharge_node,
             "logs": self.match_log
         }

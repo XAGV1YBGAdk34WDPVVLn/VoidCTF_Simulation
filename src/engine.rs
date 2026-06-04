@@ -32,6 +32,7 @@ pub struct GameEngine {
     pub audit_loading: bool,
     pub sim_time: f32,
     pub last_action_time: f32,
+    pub overcharge_node: serde_json::Value,
     
     #[serde(skip_serializing)]
     pub strategy_templates: serde_json::Value,
@@ -123,6 +124,19 @@ impl GameEngine {
             }
         });
 
+        let mut node_z = 0.0;
+        for p in &map_layout.platforms {
+            if p.x <= 0.0 && 0.0 <= p.x + p.w && p.y <= 0.0 && 0.0 <= p.y + p.d {
+                node_z = p.z;
+                break;
+            }
+        }
+        let overcharge_node = serde_json::json!({
+            "pos": [0.0, 0.0, node_z],
+            "active": true,
+            "respawn_timer": 0.0
+        });
+
         let mut engine = Self {
             map_layout,
             state: "PREGAME".to_string(),
@@ -140,6 +154,7 @@ impl GameEngine {
             audit_loading: false,
             sim_time: 0.0,
             last_action_time: 0.0,
+            overcharge_node,
             strategy_templates,
             summary_stats: serde_json::json!({}),
         };
@@ -278,6 +293,20 @@ impl GameEngine {
         self.flags.get_mut("orange").unwrap().pos = orange_base;
         self.flags.get_mut("orange").unwrap().at_base = true;
 
+        // Reset midfield overcharge node
+        let mut node_z = 0.0;
+        for p in &self.map_layout.platforms {
+            if p.x <= 0.0 && 0.0 <= p.x + p.w && p.y <= 0.0 && 0.0 <= p.y + p.d {
+                node_z = p.z;
+                break;
+            }
+        }
+        self.overcharge_node = serde_json::json!({
+            "pos": [0.0, 0.0, node_z],
+            "active": true,
+            "respawn_timer": 0.0
+        });
+
         self.log_event("Grid rebooted. Preparing match parameters...");
     }
 
@@ -293,6 +322,53 @@ impl GameEngine {
             }
         } else if self.state == "RUNNING" {
             self.match_time -= dt;
+
+            // Update overcharge node logic
+            let mut active = self.overcharge_node.get("active").and_then(|v| v.as_bool()).unwrap_or(false);
+            let mut respawn_timer = self.overcharge_node.get("respawn_timer").and_then(|v| v.as_f64()).unwrap_or(0.0) as f32;
+            let node_pos_arr = self.overcharge_node.get("pos").unwrap().as_array().unwrap();
+            let node_pos = [
+                node_pos_arr[0].as_f64().unwrap() as f32,
+                node_pos_arr[1].as_f64().unwrap() as f32,
+                node_pos_arr[2].as_f64().unwrap() as f32,
+            ];
+
+            if !active {
+                respawn_timer -= dt;
+                if respawn_timer <= 0.0 {
+                    active = true;
+                    respawn_timer = 0.0;
+                    self.log_event("MIDFIELD OVERCHARGE NODE spawned!");
+                }
+            }
+
+            let mut pickup_player_name = None;
+            if active {
+                for p in self.players.values_mut() {
+                    if p.is_alive {
+                        let h_dist = crate::math::distance([p.pos[0], p.pos[1], 0.0], [node_pos[0], node_pos[1], 0.0]);
+                        let v_dist = (p.pos[2] - node_pos[2]).abs();
+                        if h_dist < 4.0 && v_dist < 4.0 {
+                            p.overcharge_timer = 6.0;
+                            p.shield = p.max_shield * 1.5;
+                            active = false;
+                            respawn_timer = 30.0;
+                            pickup_player_name = Some(p.name.clone());
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if let Some(name) = pickup_player_name {
+                self.log_event(&format!("{} picked up the MIDFIELD OVERCHARGE!", name));
+            }
+
+            self.overcharge_node = serde_json::json!({
+                "pos": node_pos,
+                "active": active,
+                "respawn_timer": respawn_timer
+            });
             
             // Debug player positions every 2 seconds (approx 60 ticks)
             if (self.sim_time * 30.0) as i32 % 60 == 0 {
@@ -448,23 +524,40 @@ impl GameEngine {
                 pos_arr[2].as_f64().unwrap() as f32,
             ];
             let vel_arr = proj.get("vel").unwrap().as_array().unwrap();
-            let vel = [
+            let mut vel = [
                 vel_arr[0].as_f64().unwrap() as f32,
                 vel_arr[1].as_f64().unwrap() as f32,
                 vel_arr[2].as_f64().unwrap() as f32,
             ];
 
             let delta_move = crate::math::scale(vel, dt);
+            let prev_pos = pos;
             pos = crate::math::add(pos, delta_move);
 
             let mut range_left = proj.get("range_left").unwrap().as_f64().unwrap() as f32;
             range_left -= crate::math::length(delta_move);
 
+            let mut bounces = proj.get("bounces").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
             let mut hit = false;
 
             // 1. Boundary check
-            if pos[0].abs() > 99.0 || pos[1].abs() > 99.0 {
-                hit = true;
+            if pos[0].abs() > 99.0 {
+                if bounces < 2 {
+                    vel[0] = -vel[0];
+                    pos[0] = if pos[0] > 0.0 { 99.0 } else { -99.0 };
+                    bounces += 1;
+                } else {
+                    hit = true;
+                }
+            }
+            if !hit && pos[1].abs() > 99.0 {
+                if bounces < 2 {
+                    vel[1] = -vel[1];
+                    pos[1] = if pos[1] > 0.0 { 99.0 } else { -99.0 };
+                    bounces += 1;
+                } else {
+                    hit = true;
+                }
             }
 
             // 2. Building check
@@ -472,7 +565,25 @@ impl GameEngine {
                 for b in &self.map_layout.buildings {
                     if b.x <= pos[0] && pos[0] <= b.x + b.w && b.y <= pos[1] && pos[1] <= b.y + b.d {
                         if b.z <= pos[2] && pos[2] <= b.z + b.h {
-                            hit = true;
+                            if bounces < 2 {
+                                let crossed_x = prev_pos[0] < b.x || prev_pos[0] > b.x + b.w;
+                                let crossed_y = prev_pos[1] < b.y || prev_pos[1] > b.y + b.d;
+                                if crossed_x && !crossed_y {
+                                    vel[0] = -vel[0];
+                                    pos[0] = if vel[0] > 0.0 { b.x + b.w + 0.05 } else { b.x - 0.05 };
+                                } else if crossed_y && !crossed_x {
+                                    vel[1] = -vel[1];
+                                    pos[1] = if vel[1] > 0.0 { b.y + b.d + 0.05 } else { b.y - 0.05 };
+                                } else {
+                                    vel[0] = -vel[0];
+                                    vel[1] = -vel[1];
+                                    pos[0] = if vel[0] > 0.0 { b.x + b.w + 0.05 } else { b.x - 0.05 };
+                                    pos[1] = if vel[1] > 0.0 { b.y + b.d + 0.05 } else { b.y - 0.05 };
+                                }
+                                bounces += 1;
+                            } else {
+                                hit = true;
+                            }
                             break;
                         }
                     }
@@ -527,7 +638,9 @@ impl GameEngine {
                 // Update fields
                 let mut map = proj.as_object_mut().unwrap().clone();
                 map.insert("pos".to_string(), serde_json::json!(pos));
+                map.insert("vel".to_string(), serde_json::json!(vel));
                 map.insert("range_left".to_string(), serde_json::json!(range_left));
+                map.insert("bounces".to_string(), serde_json::json!(bounces));
                 active_projectiles.push(serde_json::Value::Object(map));
             }
         }
@@ -678,12 +791,38 @@ impl GameEngine {
             events_to_log.push(format!("SCORE! Orange Team captures Blue Flag! Blue: {} | Orange: {}", self.scores["blue"], self.scores["orange"]));
         }
 
+        if blue_scored || orange_scored {
+            let b_score = self.scores["blue"];
+            let o_score = self.scores["orange"];
+            if b_score == 2 && o_score == 0 {
+                self.trigger_comeback("orange");
+            } else if o_score == 2 && b_score == 0 {
+                self.trigger_comeback("blue");
+            }
+        }
+
         let has_events = !events_to_log.is_empty();
         for msg in events_to_log {
             self.log_event(&msg);
         }
         if has_events {
             self.last_action_time = self.sim_time;
+        }
+    }
+
+    pub fn trigger_comeback(&mut self, team: &str) {
+        self.log_event(&format!("TACTICAL SHIFT: {} Team triggers COMEBACK strategy: RUSH!", team.to_uppercase()));
+        for p in self.players.values_mut() {
+            if p.team == team {
+                p.strategy = "RUSH".to_string();
+            }
+        }
+        if let Some(t) = self.tactics.get_mut(team) {
+            if let Some(obj) = t.as_object_mut() {
+                obj.insert("strategy".to_string(), serde_json::json!("RUSH"));
+                obj.insert("rationale".to_string(), serde_json::json!("Auto-triggered fallback due to 2-0 score deficit."));
+                obj.insert("source".to_string(), serde_json::json!("Engine"));
+            }
         }
     }
 
@@ -765,6 +904,7 @@ impl GameEngine {
             "audit_report": self.audit_report,
             "audit_loading": self.audit_loading,
             "sim_time": self.sim_time,
+            "overcharge_node": self.overcharge_node,
             "logs": self.match_log
         })
     }

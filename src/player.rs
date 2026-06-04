@@ -71,6 +71,7 @@ pub struct Player {
     pub is_shielding: bool,
     pub healing_target_id: Option<u32>,
     pub is_taking_cover: bool,
+    pub overcharge_timer: f32,
 
     #[serde(skip_serializing)]
     pub spawn_pos: [f32; 3],
@@ -143,6 +144,7 @@ impl Player {
             is_shielding: false,
             healing_target_id: None,
             is_taking_cover: false,
+            overcharge_timer: 0.0,
             
             spawn_pos,
             strategy: "SPLIT".to_string(),
@@ -220,6 +222,7 @@ impl Player {
         self.state = "PATROL".to_string();
         self.disc_cooldown = 0.0;
         self.ability_cooldown = 0.0;
+        self.overcharge_timer = 0.0;
         self.has_flag = false;
         self.patrol_target_unset = true;
     }
@@ -252,6 +255,11 @@ impl Player {
             if self.shield < self.max_shield {
                 self.shield = (self.shield + self.shield_regen_rate * dt).min(self.max_shield);
             }
+        }
+
+        // Overcharge duration reduction
+        if self.overcharge_timer > 0.0 {
+            self.overcharge_timer = (self.overcharge_timer - dt).max(0.0);
         }
 
         // Cooldown reductions
@@ -534,6 +542,14 @@ impl Player {
             }
         }
 
+        // Add dynamic, ID-based spread offsets to keep teammates from mimicking each other or stacking
+        let spread_angle = (self.id as f32 * 1.5) + (self.pos[0] * 0.05) + (self.pos[1] * 0.05);
+        let spread_dist = if self.state == "RUN_FLAG" { 1.5 } else { 3.5 };
+        routing_target[0] += spread_angle.cos() * spread_dist;
+        routing_target[1] += spread_angle.sin() * spread_dist;
+        routing_target[0] = routing_target[0].clamp(-95.0, 95.0);
+        routing_target[1] = routing_target[1].clamp(-95.0, 95.0);
+
         // Navigation waypoint routing
         let nav_target = get_navigation_target(self.pos, routing_target, &map_layout.buildings, Some(&map_layout.platforms));
         let to_target = math::sub(nav_target, self.pos);
@@ -554,7 +570,8 @@ impl Player {
         } else {
             1.0
         };
-        let current_speed = self.base_speed * speed_mult * speed_factor;
+        let overcharge_mult = if self.overcharge_timer > 0.0 { 1.3 } else { 1.0 };
+        let current_speed = self.base_speed * speed_mult * speed_factor * overcharge_mult;
 
         let old_pos = self.pos;
 
@@ -591,7 +608,22 @@ impl Player {
             }
         }
 
-        let desired_vel = math::add(math::add(math::scale(dir_vec, current_speed), avoidance_force), enemy_avoidance);
+        // Wander noise to simulate human-like micro-corrections and break absolute symmetry
+        let noise_time = (self.id as f32 * 12.34) + (self.pos[0] * 0.1) + (self.pos[1] * 0.1);
+        let wander_strength = 1.2; // slight sway
+        let wander_force = [
+            noise_time.cos() * wander_strength,
+            (noise_time * 1.5).sin() * wander_strength,
+            0.0
+        ];
+
+        let desired_vel = math::add(
+            math::add(
+                math::add(math::scale(dir_vec, current_speed), avoidance_force),
+                enemy_avoidance
+            ),
+            wander_force
+        );
         self.vel = math::add(math::scale(self.vel, 0.7), math::scale(desired_vel, 0.3));
 
         // Update position

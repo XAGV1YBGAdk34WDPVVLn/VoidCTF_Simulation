@@ -43,7 +43,8 @@ const meshCache = {
     projectiles: {},   // projectile_id -> { mesh, targetPos }
     flags: {},         // "blue", "orange" -> { group, pedestal, coreMesh }
     healingBeams: {},  // healer_id -> Line
-    mapElements: []    // list of platforms/buildings meshes
+    mapElements: [],   // list of platforms/buildings meshes
+    overchargeNode: null
 };
 
 // Particle System for De-rezzing
@@ -117,16 +118,19 @@ function initThree() {
     drawBaseGrids();
 }
 
+let gridBlue = null;
+let gridOrange = null;
+
 function drawBaseGrids() {
     // Left Grid (Blue Team Zone)
-    const gridBlue = new THREE.GridHelper(200, 40, 0x00f0ff, 0x001122);
+    gridBlue = new THREE.GridHelper(200, 40, 0x00f0ff, 0x001122);
     gridBlue.position.set(-50, 0, 0);
     gridBlue.material.opacity = 0.25;
     gridBlue.material.transparent = true;
     scene.add(gridBlue);
 
     // Right Grid (Orange Team Zone)
-    const gridOrange = new THREE.GridHelper(200, 40, 0xff7b00, 0x221100);
+    gridOrange = new THREE.GridHelper(200, 40, 0xff7b00, 0x221100);
     gridOrange.position.set(50, 0, 0);
     gridOrange.material.opacity = 0.25;
     gridOrange.material.transparent = true;
@@ -168,6 +172,12 @@ function buildMapEnvironment(layout) {
         }
     }
     meshCache.flags = {};
+
+    // Clear old overcharge node
+    if (meshCache.overchargeNode) {
+        scene.remove(meshCache.overchargeNode);
+        meshCache.overchargeNode = null;
+    }
 
     mapLayout = layout;
 
@@ -494,6 +504,9 @@ function processStateUpdate(gameState) {
     // Update Flags
     updateFlags(gameState.flags);
 
+    // Update Midfield Overcharge Node
+    updateOverchargeNode(gameState.overcharge_node);
+
     // Cleanup disconnected or de-rezzed items
     cleanupExpiredEntities(gameState);
 }
@@ -664,16 +677,25 @@ function updatePlayerMesh(p, serverTime) {
     group.visible = true;
     trailLine.visible = true;
 
-    // 1. Dashing & Cover (pulse body / hunker down)
-    if (p.is_dashing) {
-        bodyMesh.material.emissiveIntensity = 1.0;
-        bodyMesh.scale.set(1.4, 0.8, 1.4); // Squash & stretch
-    } else if (p.is_taking_cover) {
-        bodyMesh.material.emissiveIntensity = 0.05; // Dim glow in cover
-        bodyMesh.scale.set(0.9, 0.6, 0.9);         // Hunkered/crouched down
+    // 1. Dashing & Cover & Overcharge (pulse body / hunker down)
+    if (p.overcharge_timer > 0.0) {
+        // High-intensity pulsing purple glow
+        const pulse = 1.0 + Math.sin(Date.now() * 0.02) * 0.15;
+        bodyMesh.material.emissive.setHex(0x9f00ff);
+        bodyMesh.material.emissiveIntensity = 1.5 * pulse;
+        bodyMesh.scale.set(pulse, pulse, pulse);
     } else {
-        bodyMesh.material.emissiveIntensity = 0.15;
-        bodyMesh.scale.set(1, 1, 1);
+        bodyMesh.material.emissive.setHex(teamColor);
+        if (p.is_dashing) {
+            bodyMesh.material.emissiveIntensity = 1.0;
+            bodyMesh.scale.set(1.4, 0.8, 1.4); // Squash & stretch
+        } else if (p.is_taking_cover) {
+            bodyMesh.material.emissiveIntensity = 0.05; // Dim glow in cover
+            bodyMesh.scale.set(0.9, 0.6, 0.9);         // Hunkered/crouched down
+        } else {
+            bodyMesh.material.emissiveIntensity = 0.15;
+            bodyMesh.scale.set(1, 1, 1);
+        }
     }
 
     // 2. Enforcer Shield
@@ -1013,6 +1035,58 @@ function updateProjectiles(projectiles, serverTime) {
             delete meshCache.projectiles[id];
         }
     });
+}
+
+// 5.5 MIDFIELD OVERCHARGE NODE INTERACTION
+function updateOverchargeNode(nodeData) {
+    if (!nodeData) return;
+    if (nodeData.active) {
+        if (!meshCache.overchargeNode) {
+            const group = new THREE.Group();
+            const nodePos = pyToThreeVec(nodeData.pos);
+            group.position.copy(nodePos);
+            
+            // Outer glowing purple wireframe icosahedron
+            const outerGeo = new THREE.IcosahedronGeometry(2.0, 1);
+            const outerMat = new THREE.MeshBasicMaterial({
+                color: 0x9f00ff,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.8
+            });
+            const outerMesh = new THREE.Mesh(outerGeo, outerMat);
+            group.add(outerMesh);
+            
+            // Inner white/bright core
+            const innerGeo = new THREE.SphereGeometry(0.8, 16, 16);
+            const innerMat = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                emissive: 0x9f00ff,
+                emissiveIntensity: 2.0,
+                roughness: 0.1,
+                metalness: 0.1
+            });
+            const innerMesh = new THREE.Mesh(innerGeo, innerMat);
+            group.add(innerMesh);
+            
+            scene.add(group);
+            meshCache.overchargeNode = group;
+        }
+        meshCache.overchargeNode.visible = true;
+        
+        // Animate rotation & floating
+        const time = Date.now() * 0.003;
+        meshCache.overchargeNode.rotation.y = time * 0.5;
+        meshCache.overchargeNode.rotation.x = time * 0.3;
+        
+        // Float relative to base Python Z coordinate mapped to Three Y
+        const baseZ = nodeData.pos[2];
+        meshCache.overchargeNode.position.y = baseZ + 1.5 + Math.sin(time * 2.0) * 0.4;
+    } else {
+        if (meshCache.overchargeNode) {
+            meshCache.overchargeNode.visible = false;
+        }
+    }
 }
 
 // 6. FLAGS INTERACTION
@@ -1472,6 +1546,22 @@ function animate() {
 
     // Update Particles
     updateParticles(dt);
+
+    // Floor grid breathing pulsation
+    if (gridBlue && gridOrange) {
+        let matchTime = 180.0;
+        if (currentGameState && currentGameState.match_time !== undefined) {
+            matchTime = Math.max(0.0, currentGameState.match_time);
+        }
+        const maxTime = 180.0;
+        const timeRatio = 1.0 - (matchTime / maxTime); // 0.0 at start, 1.0 at end
+        const pulseFreq = 1.5 + timeRatio * 8.5; // pulses faster as time runs down (1.5Hz to 10Hz)
+        const time = Date.now() * 0.001;
+        const pulseVal = Math.sin(time * pulseFreq * 2.0 * Math.PI); // full sine wave cycles
+        const opacity = 0.15 + (pulseVal + 1.0) * 0.5 * 0.20; // range 0.15 to 0.35
+        gridBlue.material.opacity = opacity;
+        gridOrange.material.opacity = opacity;
+    }
 
     // Update camera positions based on Mode
     updateCamera(dt);

@@ -72,6 +72,7 @@ def get_map_layout() -> dict:
     ]
 
     return {
+        "style": 0,
         "platforms": platforms,
         "buildings": buildings,
         "spawns": spawns,

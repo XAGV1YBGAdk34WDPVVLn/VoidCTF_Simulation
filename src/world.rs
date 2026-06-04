@@ -43,6 +43,7 @@ pub struct Ramp {
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct MapLayout {
+    pub style: i32,
     pub platforms: Vec<Platform>,
     pub buildings: Vec<Building>,
     pub spawns: HashMap<String, Vec<[f32; 3]>>,
@@ -72,7 +73,7 @@ fn generate_midfield_dome_map() -> MapLayout {
     // Procedural variations
     let center_size = rng.gen_range(50.0..65.0); // Random width/depth for center
     let center_z = rng.gen_range(11.0..14.0);    // Random high ground height
-    let side_width = rng.gen_range(18.0..25.0);   // Side platform width
+    let side_width = 70.0 - (center_size / 2.0) - 12.0; // Meets the center ramp start precisely
     let side_z = rng.gen_range(6.0..8.5);         // Medium height
 
     let mut platforms = Vec::new();
@@ -214,6 +215,7 @@ fn generate_midfield_dome_map() -> MapLayout {
     bases.insert("orange".to_string(), BaseInfo { pos: [80.0, 0.0, 0.0] });
 
     MapLayout {
+        style: 0,
         platforms,
         buildings,
         spawns,
@@ -320,6 +322,7 @@ fn generate_flanking_lanes_map() -> MapLayout {
     bases.insert("orange".to_string(), BaseInfo { pos: [80.0, 0.0, 0.0] });
 
     MapLayout {
+        style: 1,
         platforms,
         buildings,
         spawns,
@@ -436,6 +439,7 @@ fn generate_fortress_map() -> MapLayout {
     bases.insert("orange".to_string(), BaseInfo { pos: [80.0, 0.0, 0.0] });
 
     MapLayout {
+        style: 2,
         platforms,
         buildings,
         spawns,

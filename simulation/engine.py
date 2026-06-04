@@ -58,13 +58,21 @@ class GameEngine:
         self.sim_time = 0.0
 
         # Midfield overcharge node initialization
+        style = self.map_layout.get("style", 0)
+        if style == 0:
+            node_x, node_y = 0.0, 12.0
+        elif style == 1:
+            node_x, node_y = 0.0, 18.0
+        else:
+            node_x, node_y = 0.0, 0.0
+
         node_z = 0.0
         for p in self.map_layout.get("platforms", []):
-            if p["x"] <= 0.0 <= p["x"] + p["w"] and p["y"] <= 0.0 <= p["y"] + p["d"]:
+            if p["x"] <= node_x <= p["x"] + p["w"] and p["y"] <= node_y <= p["y"] + p["d"]:
                 node_z = p["z"]
                 break
         self.overcharge_node = {
-            "pos": [0.0, 0.0, node_z],
+            "pos": [node_x, node_y, node_z],
             "active": True,
             "respawn_timer": 0.0
         }
@@ -149,13 +157,21 @@ class GameEngine:
         self.flags["orange"]["at_base"] = True
         
         # Reset midfield overcharge node
+        style = self.map_layout.get("style", 0)
+        if style == 0:
+            node_x, node_y = 0.0, 12.0
+        elif style == 1:
+            node_x, node_y = 0.0, 18.0
+        else:
+            node_x, node_y = 0.0, 0.0
+
         node_z = 0.0
         for p in self.map_layout.get("platforms", []):
-            if p["x"] <= 0.0 <= p["x"] + p["w"] and p["y"] <= 0.0 <= p["y"] + p["d"]:
+            if p["x"] <= node_x <= p["x"] + p["w"] and p["y"] <= node_y <= p["y"] + p["d"]:
                 node_z = p["z"]
                 break
         self.overcharge_node = {
-            "pos": [0.0, 0.0, node_z],
+            "pos": [node_x, node_y, node_z],
             "active": True,
             "respawn_timer": 0.0
         }

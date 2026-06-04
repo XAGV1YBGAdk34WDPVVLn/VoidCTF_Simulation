@@ -124,15 +124,20 @@ impl GameEngine {
             }
         });
 
+        let (node_x, node_y) = match map_layout.style {
+            0 => (0.0, 12.0),
+            1 => (0.0, 18.0),
+            _ => (0.0, 0.0),
+        };
         let mut node_z = 0.0;
         for p in &map_layout.platforms {
-            if p.x <= 0.0 && 0.0 <= p.x + p.w && p.y <= 0.0 && 0.0 <= p.y + p.d {
+            if p.x <= node_x && node_x <= p.x + p.w && p.y <= node_y && node_y <= p.y + p.d {
                 node_z = p.z;
                 break;
             }
         }
         let overcharge_node = serde_json::json!({
-            "pos": [0.0, 0.0, node_z],
+            "pos": [node_x, node_y, node_z],
             "active": true,
             "respawn_timer": 0.0
         });
@@ -294,15 +299,20 @@ impl GameEngine {
         self.flags.get_mut("orange").unwrap().at_base = true;
 
         // Reset midfield overcharge node
+        let (node_x, node_y) = match self.map_layout.style {
+            0 => (0.0, 12.0),
+            1 => (0.0, 18.0),
+            _ => (0.0, 0.0),
+        };
         let mut node_z = 0.0;
         for p in &self.map_layout.platforms {
-            if p.x <= 0.0 && 0.0 <= p.x + p.w && p.y <= 0.0 && 0.0 <= p.y + p.d {
+            if p.x <= node_x && node_x <= p.x + p.w && p.y <= node_y && node_y <= p.y + p.d {
                 node_z = p.z;
                 break;
             }
         }
         self.overcharge_node = serde_json::json!({
-            "pos": [0.0, 0.0, node_z],
+            "pos": [node_x, node_y, node_z],
             "active": true,
             "respawn_timer": 0.0
         });

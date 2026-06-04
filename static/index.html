@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Void Grid 3v3: Capture The Flag Simulation</title>
+    <!-- Google Fonts for futuristic styling -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    
+    <!-- Three.js and plugins loaded locally -->
+    <script src="/static/js/lib/three.min.js"></script>
+    <script src="/static/js/lib/OrbitControls.js"></script>
+    
+    <!-- Postprocessing for Neon Bloom Glow -->
+    <script src="/static/js/lib/EffectComposer.js"></script>
+    <script src="/static/js/lib/RenderPass.js"></script>
+    <script src="/static/js/lib/ShaderPass.js"></script>
+    <script src="/static/js/lib/CopyShader.js"></script>
+    <script src="/static/js/lib/LuminosityHighPassShader.js"></script>
+    <script src="/static/js/lib/UnrealBloomPass.js"></script>
+</head>
+<body>
+    <!-- The canvas for Three.js 3D rendering -->
+    <div id="canvas-container"></div>
+
+    <!-- UI Overlay container -->
+    <div id="hud-overlay">
+        <!-- Header / Match state -->
+        <header class="hud-element top-bar">
+            <div class="logo">
+                <span class="neon-text-blue">VOID</span> <span class="neon-text-orange">GRID_CTF</span>
+                <span id="fps-counter" class="fps-counter">FPS: --</span>
+            </div>
+            
+            <div id="game-status-display" class="status-container">
+                <div id="status-label" class="status-label">PRE-GAME PROTOCOLS</div>
+                <div id="timer-display" class="timer-display">00:00</div>
+            </div>
+            
+            <div class="scoreboard">
+                <div class="score-team blue-score-box">
+                    <span class="team-label">BLUE</span>
+                    <span id="score-blue" class="score-num">0</span>
+                </div>
+                <div class="score-team orange-score-box">
+                    <span class="team-label">ORANGE</span>
+                    <span id="score-orange" class="score-num">0</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Left Column: Strategy and Vitals -->
+        <aside class="hud-element sidebar left-sidebar">
+            <section class="hud-panel strategies-panel">
+                <h2>TACTICAL SECTOR</h2>
+                
+                <div class="team-strategy-box blue-strat">
+                    <h3>BLUE TEAM STRATEGY: <span id="blue-strategy-title" class="strategy-badge">LOADING...</span></h3>
+                    <p id="blue-strategy-rationale" class="strategy-desc">Retrieving parameters from Tactical Core...</p>
+                    <div class="strategy-source">Source: <span id="blue-strategy-source">Tactical Advisor</span></div>
+                </div>
+
+                <div class="team-strategy-box orange-strat">
+                    <h3>ORANGE TEAM STRATEGY: <span id="orange-strategy-title" class="strategy-badge">LOADING...</span></h3>
+                    <p id="orange-strategy-rationale" class="strategy-desc">Retrieving parameters from Tactical Core...</p>
+                    <div class="strategy-source">Source: <span id="orange-strategy-source">Tactical Advisor</span></div>
+                </div>
+            </section>
+
+            <section class="hud-panel vital-panel">
+                <h2>ROSTER TELEMETRY</h2>
+                <div class="player-roster" id="blue-roster">
+                    <div class="roster-team-title neon-text-blue">TEAM BLUE</div>
+                    <!-- Dynamically populated -->
+                </div>
+                <div class="player-roster" id="orange-roster">
+                    <div class="roster-team-title neon-text-orange">TEAM ORANGE</div>
+                    <!-- Dynamically populated -->
+                </div>
+            </section>
+        </aside>
+
+        <!-- Right Column: Match Log and Systems controls -->
+        <aside class="hud-element sidebar right-sidebar">
+            <section class="hud-panel system-log-panel">
+                <h2>GRID EVENTS</h2>
+                <div id="match-log" class="terminal-scroller">
+                    <!-- Dynamically populated -->
+                </div>
+            </section>
+
+            <section class="hud-panel control-panel">
+                <h2>CAMERA MODULE</h2>
+                
+                <div class="camera-toggles">
+                    <button id="btn-cam-ghost" class="btn active">GHOST CAM</button>
+                    <button id="btn-cam-action" class="btn">ACTION CAM</button>
+                </div>
+                
+                <div class="camera-info">
+                    <p class="control-tip"><strong>Ghost Cam:</strong> Left-click + drag to rotate. Mousewheel to zoom. WASD to fly.</p>
+                    <p class="control-tip"><strong>Action Cam:</strong> Tracks the active game hotspots smoothly.</p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="focus-select">Track Target:</label>
+                    <select id="focus-select" class="form-select">
+                        <option value="auto">Auto Focus (Action Hotspots)</option>
+                        <option value="blue_stalker">Blue Stalker (A-Tron)</option>
+                        <option value="blue_heavy">Blue Heavy (B-Block)</option>
+                        <option value="blue_support">Blue Support (C-Medic)</option>
+                        <option value="orange_stalker">Orange Stalker (X-Vector)</option>
+                        <option value="orange_heavy">Orange Heavy (Y-Shield)</option>
+                        <option value="orange_support">Orange Support (Z-Solder)</option>
+                    </select>
+                </div>
+
+                <div class="performance-setting">
+                    <label class="switch-container">
+                        <input type="checkbox" id="toggle-bloom" checked>
+                        <span class="switch-slider"></span>
+                        <span class="switch-label">Enable Neon Glow (Bloom)</span>
+                    </label>
+                    <span class="hint-text">Turn off to optimize performance on older laptops.</span>
+                </div>
+
+                <button id="btn-reboot" class="btn danger-btn">REBOOT GRID</button>
+            </section>
+        </aside>
+    </div>
+
+    <!-- Pregame / Loading screen overlay -->
+    <div id="pregame-overlay" class="modal-overlay">
+        <div class="modal-content text-glow">
+            <h1 class="logo-large"><span class="neon-text-blue">VOID</span> <span class="neon-text-orange">GRID</span></h1>
+            <h2 class="sub-title">GRID INITIALIZATION PROTOCOLS RUNNING</h2>
+            
+            <div class="countdown-spinner">
+                <svg viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="45" class="spinner-track"></circle>
+                    <circle cx="50" cy="50" r="45" class="spinner-fill"></circle>
+                </svg>
+                <div id="countdown-number" class="countdown-number">15</div>
+            </div>
+
+            <div class="tactics-loading-status">
+                <div class="status-row">
+                    <span>Initializing Tactical Core (Blue Strategy)...</span>
+                    <span id="blue-tactics-status" class="status-indicator loading">PENDING</span>
+                </div>
+                <div class="status-row">
+                    <span>Initializing Tactical Core (Orange Strategy)...</span>
+                    <span id="orange-tactics-status" class="status-indicator loading">PENDING</span>
+                </div>
+            </div>
+            
+            <div class="manual-overrides">
+                <h3>FORCE TACTICAL CONFIGURATION:</h3>
+                <div class="override-row">
+                    <span>Blue:</span>
+                    <button class="btn btn-sm btn-override" data-team="blue" data-strat="RUSH">RUSH</button>
+                    <button class="btn btn-sm btn-override" data-team="blue" data-strat="TURTLE">TURTLE</button>
+                    <button class="btn btn-sm btn-override" data-team="blue" data-strat="SPLIT">SPLIT</button>
+                    <button class="btn btn-sm btn-override" data-team="blue" data-strat="FLANK">FLANK</button>
+                    <button class="btn btn-sm btn-override" data-team="blue" data-strat="HARASS">HARASS</button>
+                    <button class="btn btn-sm btn-override" data-team="blue" data-strat="COUNTER">COUNTER</button>
+                </div>
+                <div class="override-row">
+                    <span>Orange:</span>
+                    <button class="btn btn-sm btn-override" data-team="orange" data-strat="RUSH">RUSH</button>
+                    <button class="btn btn-sm btn-override" data-team="orange" data-strat="TURTLE">TURTLE</button>
+                    <button class="btn btn-sm btn-override" data-team="orange" data-strat="SPLIT">SPLIT</button>
+                    <button class="btn btn-sm btn-override" data-team="orange" data-strat="FLANK">FLANK</button>
+                    <button class="btn btn-sm btn-override" data-team="orange" data-strat="HARASS">HARASS</button>
+                    <button class="btn btn-sm btn-override" data-team="orange" data-strat="COUNTER">COUNTER</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Postgame / Audit screen overlay -->
+    <div id="audit-overlay" class="modal-overlay hidden">
+        <div class="modal-content audit-modal">
+            <h1 class="audit-header">GRID SYSTEMS AUDIT REPORT</h1>
+            <div class="audit-meta">
+                <span>MCP CORE AUDITOR: LOCAL SUBROUTINE</span>
+                <span>STATUS: COMPLETE</span>
+            </div>
+            
+            <div class="audit-container">
+                <div id="audit-loading-spinner" class="audit-loading-spinner">
+                    <div class="dots-container">
+                        <div class="dot"></div>
+                        <div class="dot"></div>
+                        <div class="dot"></div>
+                    </div>
+                    <p>Local Subroutine is auditing telemetry files and compiling strategy corrections...</p>
+                </div>
+                <pre id="audit-text" class="typewriter-text"></pre>
+            </div>
+            
+            <div class="modal-actions">
+                <button id="btn-audit-reboot" class="btn danger-btn text-glow">REBOOT GRID CYCLE</button>
+            </div>
+        </div>
+    </div>
+
+     <script src="/static/js/game.js?v=15"></script>
+</body>
+</html>

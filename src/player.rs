@@ -5,6 +5,7 @@ use crate::config::{get_class_stats, RESPAWN_COOLDOWN};
 use crate::math;
 use crate::world::MapLayout;
 use rand::Rng;
+use rand::seq::SliceRandom;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -286,6 +287,7 @@ impl Player {
         flags: &HashMap<String, serde_json::Value>,
         map_layout: &MapLayout,
         strategy_templates: &serde_json::Value,
+        overcharge_node: &serde_json::Value,
         dt: f32,
         _time_now: f32,
     ) -> Vec<PlayerAction> {
@@ -434,17 +436,40 @@ impl Player {
                 if self.class_type == "Enforcer" {
                     let target_x = (self.spawn_pos[0] + rng.gen_range(-15.0..15.0)).clamp(-95.0, 95.0);
                     let target_y = (self.spawn_pos[1] + rng.gen_range(-15.0..15.0)).clamp(-95.0, 95.0);
-                    self.target_pos = [target_x, target_y, 0.0];
+                    // Occasionally target elevated platforms so Enforcers use ramps
+                    let target_z = if rng.gen_bool(0.35) {
+                        *[0.0f32, 6.5, 10.0, 13.0].choose(&mut rng).unwrap_or(&0.0)
+                    } else { 0.0 };
+                    self.target_pos = [target_x, target_y, target_z];
                 } else if self.class_type == "Tactician" {
                     let target_x = (self.spawn_pos[0] + rng.gen_range(-20.0..20.0)).clamp(-95.0, 95.0);
                     let target_y = (self.spawn_pos[1] + rng.gen_range(-20.0..20.0)).clamp(-95.0, 95.0);
-                    self.target_pos = [target_x, target_y, 0.0];
+                    // Tacticians also roam to high ground sometimes
+                    let target_z = if rng.gen_bool(0.3) {
+                        *[0.0f32, 6.5, 10.0].choose(&mut rng).unwrap_or(&0.0)
+                    } else { 0.0 };
+                    self.target_pos = [target_x, target_y, target_z];
                 } else {
                     self.target_pos = [
                         0.0,
                         rng.gen_range(-40.0..40.0),
                         10.0,
                     ];
+                }
+            }
+        }
+
+        // Overcharge Node Target Override: when active, rush the midfield node!
+        if ["INFILTRATE", "PATROL", "HEAL_ALLIED"].contains(&self.state.as_str()) && !self.has_flag {
+            let node_active = overcharge_node.get("active").and_then(|v| v.as_bool()).unwrap_or(false);
+            if node_active {
+                if let Some(pos_arr) = overcharge_node.get("pos").and_then(|v| v.as_array()) {
+                    let node_pos = [
+                        pos_arr[0].as_f64().unwrap_or(0.0) as f32,
+                        pos_arr[1].as_f64().unwrap_or(0.0) as f32,
+                        pos_arr[2].as_f64().unwrap_or(0.0) as f32,
+                      ];
+                      self.target_pos = node_pos;
                 }
             }
         }
@@ -458,7 +483,7 @@ impl Player {
                 let mut visible_enemies = Vec::new();
                 for e in &enemies {
                     let dist = math::distance(self.pos, e.pos);
-                    if dist <= self.disc_range + 5.0 && check_line_of_sight(self.pos, e.pos, &map_layout.buildings, 0.0) {
+                    if dist <= self.disc_range + 5.0 && check_line_of_sight(self.pos, e.pos, &map_layout.buildings, &map_layout.platforms, 0.0) {
                         visible_enemies.push((dist, e));
                     }
                 }
@@ -467,7 +492,7 @@ impl Player {
                 if !visible_enemies.is_empty() {
                     visible_enemies.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
                     if let Some(&(_, closest_enemy)) = visible_enemies.first() {
-                        if let Some(cover_pos) = find_cover_position(self.pos, closest_enemy.pos, &map_layout.buildings, 2.2) {
+                        if let Some(cover_pos) = find_cover_position(self.pos, closest_enemy.pos, &map_layout.buildings, &map_layout.platforms, 2.2) {
                             self.cover_target_pos = Some(cover_pos);
                             self.is_taking_cover = true;
                             cover_found = true;
@@ -494,50 +519,95 @@ impl Player {
             self.is_taking_cover = false;
         }
 
-        // Height Level Navigation
+        // Height Level Navigation — pick nearest ramp on same side, handle both up and down
         let mut routing_target = self.target_pos;
         let player_z = self.pos[2];
         let target_z = self.target_pos[2];
+        let needs_height_change = (target_z - player_z).abs() > 3.0;
 
-        if target_z > player_z + 3.0 {
-            let mut best_ramp = None;
+        if needs_height_change {
+            // Find the nearest ramp on the same map half that can bridge the height gap
+            let mut best_ramp: Option<&crate::world::Ramp> = None;
+            let mut best_ramp_dist = f32::MAX;
             for ramp in &map_layout.ramps {
                 let center_x = (ramp.x1 + ramp.x2) / 2.0;
-                if (self.pos[0] < 0.0 && center_x < 0.0) || (self.pos[0] >= 0.0 && center_x >= 0.0) {
+                let center_y = (ramp.y1 + ramp.y2) / 2.0;
+                // Must be on the same horizontal half as the player
+                if (self.pos[0] < 0.0) == (center_x < 0.0) {
                     let r_z_min = ramp.z1.min(ramp.z2);
                     let r_z_max = ramp.z1.max(ramp.z2);
-                    if r_z_min < player_z + 1.0 && r_z_max > player_z + 2.0 {
-                        best_ramp = Some(ramp);
-                        break;
+                    
+                    let player_on_ramp = self.pos[0] >= ramp.x1 - 1.0
+                        && self.pos[0] <= ramp.x2 + 1.0
+                        && self.pos[1] >= ramp.y1 - 1.0
+                        && self.pos[1] <= ramp.y2 + 1.0;
+                    
+                    let is_reachable = player_on_ramp || if target_z > player_z {
+                        (r_z_min - player_z).abs() < 2.0
+                    } else {
+                        (r_z_max - player_z).abs() < 2.0
+                    };
+                    
+                    let helps_direction = if target_z > player_z {
+                        r_z_max > player_z + 1.0
+                    } else {
+                        r_z_min < player_z - 1.0
+                    };
+                    
+                    if is_reachable && helps_direction {
+                        let dist = math::distance(
+                            [self.pos[0], self.pos[1], 0.0],
+                            [center_x, center_y, 0.0],
+                        );
+                        if dist < best_ramp_dist {
+                            best_ramp_dist = dist;
+                            best_ramp = Some(ramp);
+                        }
                     }
                 }
             }
+
             if let Some(ramp) = best_ramp {
                 let lower_end = if ramp.z1 < ramp.z2 {
-                    [ramp.x1, (ramp.y1 + ramp.y2)/2.0, ramp.z1]
+                    [ramp.x1, (ramp.y1 + ramp.y2) / 2.0, ramp.z1]
                 } else {
-                    [ramp.x2, (ramp.y1 + ramp.y2)/2.0, ramp.z2]
+                    [ramp.x2, (ramp.y1 + ramp.y2) / 2.0, ramp.z2]
                 };
                 let higher_end = if ramp.z1 < ramp.z2 {
-                    [ramp.x2, (ramp.y1 + ramp.y2)/2.0, ramp.z2]
+                    [ramp.x2, (ramp.y1 + ramp.y2) / 2.0, ramp.z2]
                 } else {
-                    [ramp.x1, (ramp.y1 + ramp.y2)/2.0, ramp.z1]
+                    [ramp.x1, (ramp.y1 + ramp.y2) / 2.0, ramp.z1]
                 };
 
-                let on_this_ramp = self.pos[0] >= ramp.x1 - 1.0 && self.pos[0] <= ramp.x2 + 1.0 && self.pos[1] >= ramp.y1 - 2.2 && self.pos[1] <= ramp.y2 + 2.2;
-                if on_this_ramp {
-                    let reached_top = if ramp.z1 < ramp.z2 {
-                        self.pos[0] >= ramp.x2 - 1.0
+                // Proximity-based: are we close enough to the bottom/top entry point?
+                let dist_to_lower = math::distance(
+                    [self.pos[0], self.pos[1], 0.0],
+                    [lower_end[0], lower_end[1], 0.0],
+                );
+                let dist_to_higher = math::distance(
+                    [self.pos[0], self.pos[1], 0.0],
+                    [higher_end[0], higher_end[1], 0.0],
+                );
+
+                let player_on_ramp = self.pos[0] >= ramp.x1 - 1.0
+                    && self.pos[0] <= ramp.x2 + 1.0
+                    && self.pos[1] >= ramp.y1 - 1.0
+                    && self.pos[1] <= ramp.y2 + 1.0;
+
+                if target_z > player_z + 3.0 {
+                    // Going UP: navigate to low entry, then ascend
+                    if dist_to_lower < 5.0 || player_on_ramp {
+                        routing_target = higher_end;
                     } else {
-                        self.pos[0] <= ramp.x1 + 1.0
-                    };
-                    if reached_top {
-                        // Reached top of the ramp, do not override target
+                        routing_target = lower_end;
+                    }
+                } else {
+                    // Going DOWN: navigate to high entry, then descend
+                    if dist_to_higher < 5.0 || player_on_ramp {
+                        routing_target = lower_end;
                     } else {
                         routing_target = higher_end;
                     }
-                } else {
-                    routing_target = [lower_end[0], lower_end[1], player_z];
                 }
             }
         }
@@ -754,21 +824,70 @@ impl Player {
         if expected_dist > 0.1 && actual_dist < expected_dist * 0.05 && distance > 0.15 {
             self.stuck_frames += 1;
             if self.stuck_frames >= 20 {
-                let mut rng = rand::thread_rng();
-                let nudge_dir = math::sub(self.target_pos, self.pos);
-                let nudge_dist = math::length([nudge_dir[0], nudge_dir[1], 0.0]);
-                if nudge_dist > 0.01 {
-                    let perp = [
-                        -nudge_dir[1] / nudge_dist,
-                        nudge_dir[0] / nudge_dist,
-                        0.0,
-                    ];
-                    self.pos = math::add(self.pos, math::add(math::scale(perp, 3.5), math::scale(math::normalize(nudge_dir), 1.5)));
-                    self.vel = math::scale(math::add(math::scale(perp, 3.5), math::scale(math::normalize(nudge_dir), 1.5)), 1.0 / dt);
-                } else {
+                let mut nudged = false;
+                
+                // 1. Check if near any building
+                let mut near_building = None;
+                for b in &map_layout.buildings {
+                    let bx1 = b.x;
+                    let by1 = b.y;
+                    let bx2 = b.x + b.w;
+                    let by2 = b.y + b.d;
+                    let bz1 = b.z;
+                    let bz2 = b.z + b.h;
+                    
+                    if self.pos[2] >= bz1 && self.pos[2] <= bz2 {
+                        let radius = 3.5; // check range
+                        if bx1 - radius <= self.pos[0] && self.pos[0] <= bx2 + radius
+                           && by1 - radius <= self.pos[1] && self.pos[1] <= by2 + radius {
+                            near_building = Some(b);
+                            break;
+                        }
+                    }
+                }
+                
+                if let Some(b) = near_building {
+                    let b_center = [b.x + b.w / 2.0, b.y + b.d / 2.0, self.pos[2]];
+                    let mut push_dir = math::sub(self.pos, b_center);
+                    push_dir[2] = 0.0;
+                    let dist = math::length(push_dir);
+                    if dist > 0.01 {
+                        let push_vec = math::scale(math::normalize(push_dir), 3.5);
+                        self.pos = math::add(self.pos, push_vec);
+                        self.vel = math::scale(push_vec, 1.0 / dt);
+                        nudged = true;
+                    }
+                }
+                
+                // 2. Check if near boundary
+                if !nudged {
+                    let mut boundary_nudge = [0.0, 0.0, 0.0];
+                    if self.pos[0] < -95.0 {
+                        boundary_nudge[0] = 3.5;
+                    } else if self.pos[0] > 95.0 {
+                        boundary_nudge[0] = -3.5;
+                    }
+                    if self.pos[1] < -95.0 {
+                        boundary_nudge[1] = 3.5;
+                    } else if self.pos[1] > 95.0 {
+                        boundary_nudge[1] = -3.5;
+                    }
+                    
+                    if boundary_nudge[0] != 0.0 || boundary_nudge[1] != 0.0 {
+                        self.pos = math::add(self.pos, boundary_nudge);
+                        self.vel = math::scale(boundary_nudge, 1.0 / dt);
+                        nudged = true;
+                    }
+                }
+                
+                // 3. Fallback: random nudge
+                if !nudged {
+                    let mut rng = rand::thread_rng();
                     let nudge_x = if rng.gen_bool(0.5) { -3.0 } else { 3.0 };
                     let nudge_y = if rng.gen_bool(0.5) { -3.0 } else { 3.0 };
-                    self.pos = math::add(self.pos, [nudge_x, nudge_y, 0.0]);
+                    let nudge_vec = [nudge_x, nudge_y, 0.0];
+                    self.pos = math::add(self.pos, nudge_vec);
+                    self.vel = math::scale(nudge_vec, 1.0 / dt);
                 }
                 self.stuck_frames = 0;
             }
@@ -782,7 +901,7 @@ impl Player {
             enemies_sorted.sort_by(|a, b| math::distance(self.pos, a.pos).partial_cmp(&math::distance(self.pos, b.pos)).unwrap());
             if let Some(closest_enemy) = enemies_sorted.first() {
                 let dist_to_enemy = math::distance(self.pos, closest_enemy.pos);
-                if dist_to_enemy <= self.disc_range && check_line_of_sight(self.pos, closest_enemy.pos, &map_layout.buildings, 0.0) {
+                if dist_to_enemy <= self.disc_range && check_line_of_sight(self.pos, closest_enemy.pos, &map_layout.buildings, &map_layout.platforms, 0.0) {
                     self.disc_cooldown = self.disc_cooldown_max;
                     if dist_to_enemy < 6.0 {
                         let mut dmg = self.melee_damage as f32;
@@ -816,7 +935,13 @@ impl Player {
     }
 }
 
-pub fn check_line_of_sight(p1: [f32; 3], p2: [f32; 3], buildings: &[crate::world::Building], radius: f32) -> bool {
+pub fn check_line_of_sight(
+    p1: [f32; 3],
+    p2: [f32; 3],
+    buildings: &[crate::world::Building],
+    platforms: &[crate::world::Platform],
+    radius: f32,
+) -> bool {
     for b in buildings {
         let bx1 = b.x - radius;
         let by1 = b.y - radius;
@@ -869,11 +994,67 @@ pub fn check_line_of_sight(p1: [f32; 3], p2: [f32; 3], buildings: &[crate::world
             }
         }
     }
+
+    for p in platforms {
+        let px1 = p.x - radius;
+        let py1 = p.y - radius;
+        let px2 = p.x + p.w + radius;
+        let py2 = p.y + p.d + radius;
+        let pz1 = p.z - 0.8;
+        let pz2 = p.z;
+
+        let mut tmin = 0.0f32;
+        let mut tmax = 1.0f32;
+        let mut blocked = true;
+
+        for i in 0..2 {
+            let orig = p1[i];
+            let dir_v = p2[i] - p1[i];
+            let bmin = if i == 0 { px1 } else { py1 };
+            let bmax = if i == 0 { px2 } else { py2 };
+
+            if dir_v.abs() < 1e-6 {
+                if orig < bmin || orig > bmax {
+                    blocked = false;
+                    break;
+                }
+            } else {
+                let mut t0 = (bmin - orig) / dir_v;
+                let mut t1 = (bmax - orig) / dir_v;
+                if t0 > t1 {
+                    std::mem::swap(&mut t0, &mut t1);
+                }
+                tmin = tmin.max(t0);
+                tmax = tmax.min(t1);
+                if tmin > tmax {
+                    blocked = false;
+                    break;
+                }
+            }
+        }
+
+        if blocked && tmin <= tmax && tmin < 1.0 && tmax > 0.0 {
+            let t_enter = tmin.max(0.0);
+            let t_exit = tmax.min(1.0);
+            let z_enter = p1[2] + t_enter * (p2[2] - p1[2]);
+            let z_exit = p1[2] + t_exit * (p2[2] - p1[2]);
+
+            let z_ray_min = z_enter.min(z_exit);
+            let z_ray_max = z_enter.max(z_exit);
+
+            if z_ray_max > pz1 + 0.01 && z_ray_min < pz2 - 0.01 {
+                return false;
+            }
+        }
+    }
+
     true
 }
 
 pub fn get_navigation_target(p_pos: [f32; 3], target_pos: [f32; 3], buildings: &[crate::world::Building], platforms: Option<&[crate::world::Platform]>) -> [f32; 3] {
-    if check_line_of_sight(p_pos, target_pos, buildings, 2.2) {
+    let empty_plats = Vec::new();
+    let plats = platforms.unwrap_or(&empty_plats);
+    if check_line_of_sight(p_pos, target_pos, buildings, plats, 2.0) {
         return target_pos;
     }
 
@@ -977,7 +1158,7 @@ pub fn get_navigation_target(p_pos: [f32; 3], target_pos: [f32; 3], buildings: &
             if visited[v] {
                 continue;
             }
-            if check_line_of_sight(nodes[u], nodes[v], buildings, 2.2) {
+            if check_line_of_sight(nodes[u], nodes[v], buildings, plats, 2.0) {
                 let d = math::distance(nodes[u], nodes[v]);
                 let alt = dist[u] + d;
                 if alt < dist[v] {
@@ -995,23 +1176,21 @@ pub fn get_navigation_target(p_pos: [f32; 3], target_pos: [f32; 3], buildings: &
             path.push(curr);
             curr = p;
         }
-        if let Some(&next_node_idx) = path.last() {
-            let next_wp = nodes[next_node_idx];
-            if math::distance(p_pos, next_wp) < 2.5 && path.len() >= 2 {
-                let second_node_idx = path[path.len() - 2];
-                let second_wp = nodes[second_node_idx];
-                if check_line_of_sight(p_pos, second_wp, buildings, 2.2) {
-                    return second_wp;
-                }
+        // check furthest visible node in path
+        for &node_idx in &path {
+            if check_line_of_sight(p_pos, nodes[node_idx], buildings, plats, 2.0) {
+                return nodes[node_idx];
             }
-            return next_wp;
+        }
+        if let Some(&first_wp_idx) = path.last() {
+            return nodes[first_wp_idx];
         }
     }
 
-    // Fallback: original logic to find closest visible waypoint to target
+    // Fallback: closest visible waypoint to target
     let mut valid_fallback_wps = Vec::new();
     for wp in nodes.iter().skip(2) {
-        if check_line_of_sight(p_pos, *wp, buildings, 2.2) {
+        if check_line_of_sight(p_pos, *wp, buildings, plats, 2.0) {
             valid_fallback_wps.push(*wp);
         }
     }
@@ -1023,7 +1202,7 @@ pub fn get_navigation_target(p_pos: [f32; 3], target_pos: [f32; 3], buildings: &
     target_pos
 }
 
-pub fn find_cover_position(player_pos: [f32; 3], enemy_pos: [f32; 3], buildings: &[crate::world::Building], player_radius: f32) -> Option<[f32; 3]> {
+pub fn find_cover_position(player_pos: [f32; 3], enemy_pos: [f32; 3], buildings: &[crate::world::Building], platforms: &[crate::world::Platform], player_radius: f32) -> Option<[f32; 3]> {
     let mut best_cover_pos = None;
     let mut best_dist = f32::INFINITY;
 
@@ -1081,7 +1260,7 @@ pub fn find_cover_position(player_pos: [f32; 3], enemy_pos: [f32; 3], buildings:
             continue;
         }
 
-        if !check_line_of_sight(cover_point, enemy_pos, buildings, 0.0) {
+        if !check_line_of_sight(cover_point, enemy_pos, buildings, platforms, 0.0) {
             let dist_to_cover = math::distance(player_pos, cover_point);
             if dist_to_cover < best_dist {
                 best_dist = dist_to_cover;

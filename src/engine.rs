@@ -125,9 +125,9 @@ impl GameEngine {
         });
 
         let (node_x, node_y) = match map_layout.style {
-            0 => (0.0, 12.0),
-            1 => (0.0, 18.0),
-            _ => (0.0, 0.0),
+            0 => (0.0, 15.0),
+            1 => (0.0, 22.0),
+            _ => (0.0, 8.0),
         };
         let mut node_z = 0.0;
         for p in &map_layout.platforms {
@@ -300,9 +300,9 @@ impl GameEngine {
 
         // Reset midfield overcharge node
         let (node_x, node_y) = match self.map_layout.style {
-            0 => (0.0, 12.0),
-            1 => (0.0, 18.0),
-            _ => (0.0, 0.0),
+            0 => (0.0, 15.0),
+            1 => (0.0, 22.0),
+            _ => (0.0, 8.0),
         };
         let mut node_z = 0.0;
         for p in &self.map_layout.platforms {
@@ -426,6 +426,7 @@ impl GameEngine {
                     &flags_data,
                     &self.map_layout,
                     &self.strategy_templates,
+                    &self.overcharge_node,
                     dt,
                     time_now,
                 );
@@ -552,7 +553,7 @@ impl GameEngine {
 
             // 1. Boundary check
             if pos[0].abs() > 99.0 {
-                if bounces < 2 {
+                if bounces < 3 {
                     vel[0] = -vel[0];
                     pos[0] = if pos[0] > 0.0 { 99.0 } else { -99.0 };
                     bounces += 1;
@@ -561,7 +562,7 @@ impl GameEngine {
                 }
             }
             if !hit && pos[1].abs() > 99.0 {
-                if bounces < 2 {
+                if bounces < 3 {
                     vel[1] = -vel[1];
                     pos[1] = if pos[1] > 0.0 { 99.0 } else { -99.0 };
                     bounces += 1;
@@ -575,7 +576,7 @@ impl GameEngine {
                 for b in &self.map_layout.buildings {
                     if b.x <= pos[0] && pos[0] <= b.x + b.w && b.y <= pos[1] && pos[1] <= b.y + b.d {
                         if b.z <= pos[2] && pos[2] <= b.z + b.h {
-                            if bounces < 2 {
+                            if bounces < 3 {
                                 let crossed_x = prev_pos[0] < b.x || prev_pos[0] > b.x + b.w;
                                 let crossed_y = prev_pos[1] < b.y || prev_pos[1] > b.y + b.d;
                                 if crossed_x && !crossed_y {
@@ -589,6 +590,44 @@ impl GameEngine {
                                     vel[1] = -vel[1];
                                     pos[0] = if vel[0] > 0.0 { b.x + b.w + 0.05 } else { b.x - 0.05 };
                                     pos[1] = if vel[1] > 0.0 { b.y + b.d + 0.05 } else { b.y - 0.05 };
+                                }
+                                bounces += 1;
+                            } else {
+                                hit = true;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // 2.5 Platform check
+            if !hit {
+                for p in &self.map_layout.platforms {
+                    let pz1 = p.z - 0.8;
+                    let pz2 = p.z;
+                    if p.x <= pos[0] && pos[0] <= p.x + p.w && p.y <= pos[1] && pos[1] <= p.y + p.d {
+                        if pz1 <= pos[2] && pos[2] <= pz2 {
+                            if bounces < 3 {
+                                let crossed_x = prev_pos[0] < p.x || prev_pos[0] > p.x + p.w;
+                                let crossed_y = prev_pos[1] < p.y || prev_pos[1] > p.y + p.d;
+                                let crossed_z = prev_pos[2] < pz1 || prev_pos[2] > pz2;
+                                
+                                if crossed_z && !crossed_x && !crossed_y {
+                                    // Bounced vertically off floor or ceiling of platform!
+                                    vel[2] = -vel[2];
+                                    pos[2] = if vel[2] > 0.0 { pz2 + 0.05 } else { pz1 - 0.05 };
+                                } else if crossed_x && !crossed_y {
+                                    vel[0] = -vel[0];
+                                    pos[0] = if vel[0] > 0.0 { p.x + p.w + 0.05 } else { p.x - 0.05 };
+                                } else if crossed_y && !crossed_x {
+                                    vel[1] = -vel[1];
+                                    pos[1] = if vel[1] > 0.0 { p.y + p.d + 0.05 } else { p.y - 0.05 };
+                                } else {
+                                    vel[0] = -vel[0];
+                                    vel[1] = -vel[1];
+                                    pos[0] = if vel[0] > 0.0 { p.x + p.w + 0.05 } else { p.x - 0.05 };
+                                    pos[1] = if vel[1] > 0.0 { p.y + p.d + 0.05 } else { p.y - 0.05 };
                                 }
                                 bounces += 1;
                             } else {

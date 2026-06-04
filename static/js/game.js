@@ -102,9 +102,9 @@ function initThree() {
     const renderScene = new THREE.RenderPass(scene, camera);
     bloomPass = new THREE.UnrealBloomPass(
         new THREE.Vector2(width, height),
-        1.3,  // Strength
-        0.4,  // Radius
-        0.55  // Threshold: only bright emissive meshes will glow
+        1.8,  // Strength — cranked up for vivid Tron glow
+        0.5,  // Radius
+        0.30  // Threshold — lower so neon lines bloom hard
     );
     
     composer = new THREE.EffectComposer(renderer);
@@ -181,59 +181,70 @@ function buildMapEnvironment(layout) {
 
     mapLayout = layout;
 
-    const wallMaterial = new THREE.MeshStandardMaterial({
-        color: 0x03030f,
-        roughness: 0.1,
-        metalness: 0.9,
-        transparent: true,
-        opacity: 0.6
-    });
+    // Vibrant neon translucent fills — ghostly holographic volume, matching Tron aesthetic
+    const matBlue    = new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.18, depthWrite: false });
+    const matOrange  = new THREE.MeshBasicMaterial({ color: 0xff7b00, transparent: true, opacity: 0.18, depthWrite: false });
+    const matNeutral = new THREE.MeshBasicMaterial({ color: 0xbd00ff, transparent: true, opacity: 0.18, depthWrite: false });
 
     // 1. Build elevated platforms
     layout.platforms.forEach(platform => {
         const { x, y, w, d, z } = platform;
-        // Three.js geometry: w (X), h (Y - vertical height of platform thickness), d (Z)
         const heightThickness = 0.8;
         const geom = new THREE.BoxGeometry(w, heightThickness, d);
-        const mesh = new THREE.Mesh(geom, wallMaterial);
-        
-        // Python: X is top-left, Y is top-left. Three.js needs center position.
-        // Also map Python Z to Three.js Y height.
+        const sideMat = x < 0 ? matBlue : matOrange;
+        const mesh = new THREE.Mesh(geom, sideMat);
         mesh.position.set(x + w/2, z - heightThickness/2, y + d/2);
         scene.add(mesh);
         meshCache.mapElements.push(mesh);
 
-        // Add glowing neon edges for the platform
+        // Blazing neon edges (double-layered for glow and thickness)
         const edges = new THREE.EdgesGeometry(geom);
-        const color = x < 0 ? TEAM_COLORS.blue : TEAM_COLORS.orange;
-        const lineMat = new THREE.LineBasicMaterial({ color: color, linewidth: 2 });
-        const line = new THREE.LineSegments(edges, lineMat);
-        line.position.copy(mesh.position);
-        scene.add(line);
-        meshCache.mapElements.push(line);
+        const colorVal = x < 0 ? TEAM_COLORS.blue : TEAM_COLORS.orange;
+        const glowColor = new THREE.Color(colorVal).multiplyScalar(10.0);
+        const lineMat = new THREE.LineBasicMaterial({ color: glowColor, linewidth: 3 });
+        
+        const line1 = new THREE.LineSegments(edges, lineMat);
+        line1.position.copy(mesh.position);
+        scene.add(line1);
+        meshCache.mapElements.push(line1);
+
+        const line2 = new THREE.LineSegments(edges, lineMat);
+        line2.position.copy(mesh.position);
+        line2.scale.set(1.002, 1.01, 1.002);
+        scene.add(line2);
+        meshCache.mapElements.push(line2);
     });
 
     // 2. Build non-walkable solid columns / walls (Buildings)
     layout.buildings.forEach(building => {
         const { x, y, w, d, z, h } = building;
         const geom = new THREE.BoxGeometry(w, h, d);
-        const mesh = new THREE.Mesh(geom, wallMaterial);
+        let bldMat = matNeutral;
+        if (x < -30) bldMat = matBlue;
+        else if (x > 30) bldMat = matOrange;
+        const mesh = new THREE.Mesh(geom, bldMat);
         mesh.position.set(x + w/2, z + h/2, y + d/2);
         scene.add(mesh);
         meshCache.mapElements.push(mesh);
 
-        // Neon outline
+        // Blazing neon outline (double-layered for thickness)
         const edges = new THREE.EdgesGeometry(geom);
-        // Distribute colors based on coordinates
-        let color = TEAM_COLORS.neutral;
-        if (x < -30) color = TEAM_COLORS.blue;
-        else if (x > 30) color = TEAM_COLORS.orange;
+        let colorVal = TEAM_COLORS.neutral;
+        if (x < -30) colorVal = TEAM_COLORS.blue;
+        else if (x > 30) colorVal = TEAM_COLORS.orange;
+        const glowColor = new THREE.Color(colorVal).multiplyScalar(10.0);
+        const lineMat = new THREE.LineBasicMaterial({ color: glowColor, linewidth: 2.5 });
         
-        const lineMat = new THREE.LineBasicMaterial({ color: color, linewidth: 1.5 });
-        const line = new THREE.LineSegments(edges, lineMat);
-        line.position.copy(mesh.position);
-        scene.add(line);
-        meshCache.mapElements.push(line);
+        const line1 = new THREE.LineSegments(edges, lineMat);
+        line1.position.copy(mesh.position);
+        scene.add(line1);
+        meshCache.mapElements.push(line1);
+
+        const line2 = new THREE.LineSegments(edges, lineMat);
+        line2.position.copy(mesh.position);
+        line2.scale.set(1.002, 1.002, 1.002);
+        scene.add(line2);
+        meshCache.mapElements.push(line2);
     });
 
     // 2.5 Build walkable ramps (inclined slabs connecting height layers)
@@ -248,13 +259,14 @@ function buildMapEnvironment(layout) {
             // Actual length of the ramp along the slope/incline
             const slopeLength = Math.sqrt(w * w + (z2 - z1) * (z2 - z1));
             
-            const geom = new THREE.BoxGeometry(slopeLength, h, d);
-            const mesh = new THREE.Mesh(geom, wallMaterial);
-            
             // Center coordinates: Python Z maps to Three.js vertical Y
             const cx = (x1 + x2) / 2.0;
             const cy = (z1 + z2) / 2.0;
             const cz = (y1 + y2) / 2.0;
+
+            const geom = new THREE.BoxGeometry(slopeLength, h, d);
+            const rampMat = cx < 0 ? matBlue : matOrange;
+            const mesh = new THREE.Mesh(geom, rampMat);
             mesh.position.set(cx, cy, cz);
             
             // Calculate slope angle around local Z-axis (rotation lifts one horizontal side)
@@ -264,15 +276,24 @@ function buildMapEnvironment(layout) {
             scene.add(mesh);
             meshCache.mapElements.push(mesh);
             
-            // Inclined glowing neon borders
+            // Blazing inclined neon borders (double-layered for thickness)
             const edges = new THREE.EdgesGeometry(geom);
-            const color = cx < 0 ? TEAM_COLORS.blue : TEAM_COLORS.orange;
-            const lineMat = new THREE.LineBasicMaterial({ color: color, linewidth: 2 });
-            const line = new THREE.LineSegments(edges, lineMat);
-            line.position.copy(mesh.position);
-            line.rotation.z = angle;
-            scene.add(line);
-            meshCache.mapElements.push(line);
+            const colorVal = cx < 0 ? TEAM_COLORS.blue : TEAM_COLORS.orange;
+            const glowColor = new THREE.Color(colorVal).multiplyScalar(10.0);
+            const lineMat = new THREE.LineBasicMaterial({ color: glowColor, linewidth: 3 });
+            
+            const line1 = new THREE.LineSegments(edges, lineMat);
+            line1.position.copy(mesh.position);
+            line1.rotation.z = angle;
+            scene.add(line1);
+            meshCache.mapElements.push(line1);
+
+            const line2 = new THREE.LineSegments(edges, lineMat);
+            line2.position.copy(mesh.position);
+            line2.rotation.z = angle;
+            line2.scale.set(1.002, 1.01, 1.002);
+            scene.add(line2);
+            meshCache.mapElements.push(line2);
         });
     }
 
@@ -282,51 +303,43 @@ function buildMapEnvironment(layout) {
 }
 
 function createFlagPedestal(team, pos) {
-    const color = TEAM_COLORS[team];
-    
-    // Glowing base pedestal ring
-    const geom = new THREE.CylinderGeometry(6, 6, 1.5, 32);
-    const mat = new THREE.MeshStandardMaterial({
-        color: 0x050510,
-        emissive: color,
-        emissiveIntensity: 0.15,
-        roughness: 0.1,
-        metalness: 0.9
+    const colorVal = TEAM_COLORS[team];
+
+    // Simplified wireframe pedestal — 8 segments only, no separate edge ring
+    const geom = new THREE.CylinderGeometry(5, 5, 1.2, 8);
+    const mat = new THREE.MeshBasicMaterial({
+        color: colorVal,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.5
     });
     const mesh = new THREE.Mesh(geom, mat);
     mesh.position.copy(pos);
-    mesh.position.y += 0.75;
+    mesh.position.y += 0.6;
     scene.add(mesh);
-    
-    // Neon edge ring
-    const edges = new THREE.EdgesGeometry(geom);
-    const lineMat = new THREE.LineBasicMaterial({ color: color, linewidth: 2 });
-    const line = new THREE.LineSegments(edges, lineMat);
-    line.position.copy(mesh.position);
-    scene.add(line);
-    
+
     // Create the Flag itself (stored in cache)
     const flagGroup = new THREE.Group();
     flagGroup.position.copy(pos);
     flagGroup.position.y += 2.0; // Float above pedestal
-    
-    // Glowing staff
-    const staffGeom = new THREE.CylinderGeometry(0.2, 0.2, 5, 8);
-    const staffMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+    // Staff — very dark, well below bloom threshold (0.55 luminance)
+    const staffGeom = new THREE.CylinderGeometry(0.12, 0.12, 5, 6);
+    const staffMat = new THREE.MeshBasicMaterial({ color: 0x1a1a1a });
     const staff = new THREE.Mesh(staffGeom, staffMat);
     flagGroup.add(staff);
-    
-    // Glowing floating tip (octahedron)
+
+    // Tip (octahedron) — the ONLY bloomable part
     const tipGeom = new THREE.OctahedronGeometry(1.2, 0);
     const tipMat = new THREE.MeshStandardMaterial({
-        color: color,
-        emissive: color,
+        color: colorVal,
+        emissive: new THREE.Color(colorVal).multiplyScalar(3.0),
         emissiveIntensity: 1.5
     });
     const tip = new THREE.Mesh(tipGeom, tipMat);
     tip.position.y = 3.0;
     flagGroup.add(tip);
-    
+
     scene.add(flagGroup);
     meshCache.flags[team] = {
         group: flagGroup,
@@ -535,29 +548,36 @@ function updatePlayerMesh(p, serverTime) {
         }
         
         const mat = new THREE.MeshStandardMaterial({
-            color: p.team === "blue" ? 0x002244 : 0x441100, // Dark base color for good contrast
+            color: p.team === "blue" ? 0x004466 : 0x661100, // Vibrant but deep contrast color
             emissive: teamColor,
-            emissiveIntensity: 0.15, // Lower emissive so standard shading is clearly visible
-            roughness: 0.2,
-            metalness: 0.8
+            emissiveIntensity: 0.6, // Richer emissive glow for Tron style
+            roughness: 0.15,
+            metalness: 0.85
         });
         const bodyMesh = new THREE.Mesh(geom, mat);
         bodyMesh.position.y = heightOffset;
         bodyMesh.castShadow = true;
         group.add(bodyMesh);
 
-        // Add Tron-like neon edge outline for crisp 3D definition
+        // Add Tron-like neon edge outline for crisp 3D definition (double-layered for glow and thickness)
         const edges = new THREE.EdgesGeometry(geom);
-        const lineMat = new THREE.LineBasicMaterial({ color: teamColor, linewidth: 2 });
-        const edgeLine = new THREE.LineSegments(edges, lineMat);
-        bodyMesh.add(edgeLine); // Child of bodyMesh to inherit all parent transformations
+        const outlineGlowColor = new THREE.Color(teamColor).multiplyScalar(8.0);
+        const lineMat = new THREE.LineBasicMaterial({ color: outlineGlowColor, linewidth: 2.5 });
+        
+        const edgeLine1 = new THREE.LineSegments(edges, lineMat);
+        bodyMesh.add(edgeLine1);
+
+        const edgeLine2 = new THREE.LineSegments(edges, lineMat);
+        edgeLine2.scale.set(1.02, 1.02, 1.02);
+        bodyMesh.add(edgeLine2);
 
         // Add Frontal Hardlight Shield (for Enforcer)
         const shieldGeom = new THREE.SphereGeometry(2.5, 16, 16, 0, Math.PI);
+        const shieldGlowColor = new THREE.Color(teamColor).multiplyScalar(2.5);
         const shieldMat = new THREE.MeshBasicMaterial({
-            color: teamColor,
+            color: shieldGlowColor,
             transparent: true,
-            opacity: 0.25,
+            opacity: 0.35,
             wireframe: true,
             side: THREE.DoubleSide
         });
@@ -1049,7 +1069,7 @@ function updateOverchargeNode(nodeData) {
             // Outer glowing purple wireframe icosahedron
             const outerGeo = new THREE.IcosahedronGeometry(2.0, 1);
             const outerMat = new THREE.MeshBasicMaterial({
-                color: 0x9f00ff,
+                color: new THREE.Color(0x9f00ff).multiplyScalar(3.0),
                 wireframe: true,
                 transparent: true,
                 opacity: 0.8
@@ -1061,7 +1081,7 @@ function updateOverchargeNode(nodeData) {
             const innerGeo = new THREE.SphereGeometry(0.8, 16, 16);
             const innerMat = new THREE.MeshStandardMaterial({
                 color: 0xffffff,
-                emissive: 0x9f00ff,
+                emissive: new THREE.Color(0x9f00ff).multiplyScalar(2.0),
                 emissiveIntensity: 2.0,
                 roughness: 0.1,
                 metalness: 0.1
@@ -1070,9 +1090,9 @@ function updateOverchargeNode(nodeData) {
             group.add(innerMesh);
             
             // Neon vertical laser beam from the sky
-            const beamGeo = new THREE.CylinderGeometry(1.5, 1.5, 150, 16, 1, true);
+            const beamGeo = new THREE.CylinderGeometry(0.5, 0.5, 150, 16, 1, true);
             const beamMat = new THREE.MeshBasicMaterial({
-                color: 0x9f00ff,
+                color: new THREE.Color(0x9f00ff).multiplyScalar(4.0),
                 transparent: true,
                 opacity: 0.3,
                 blending: THREE.AdditiveBlending,
@@ -1090,12 +1110,26 @@ function updateOverchargeNode(nodeData) {
         
         // Animate rotation & floating
         const time = Date.now() * 0.003;
-        meshCache.overchargeNode.rotation.y = time * 0.5;
-        meshCache.overchargeNode.rotation.x = time * 0.3;
+        
+        // Reset group rotation so vertical beam stays strictly vertical
+        meshCache.overchargeNode.rotation.set(0, 0, 0);
+        
+        // Rotate outer wireframe and inner core individually
+        const outer = meshCache.overchargeNode.children[0];
+        const inner = meshCache.overchargeNode.children[1];
+        const beam = meshCache.overchargeNode.children[2];
+        
+        if (outer) {
+            outer.rotation.y = time * 0.5;
+            outer.rotation.x = time * 0.3;
+        }
+        if (inner) {
+            inner.rotation.y = -time * 0.4;
+            inner.rotation.z = time * 0.2;
+        }
         
         // Animate beam rotation and slight pulsing/opacity flicker
-        if (meshCache.overchargeNode.children[2]) {
-            const beam = meshCache.overchargeNode.children[2];
+        if (beam) {
             beam.rotation.y = -time * 0.2;
             const beamPulse = 1.0 + Math.sin(time * 6.0) * 0.08;
             beam.scale.set(beamPulse, 1.0, beamPulse);
@@ -1363,6 +1397,7 @@ function interpolateState(stateA, stateB, t) {
         audit_report: stateA.audit_report,
         audit_loading: stateA.audit_loading,
         sim_time: stateA.sim_time + (stateB.sim_time - stateA.sim_time) * t,
+        overcharge_node: stateA.overcharge_node,
         logs: stateA.logs
     };
 
@@ -1818,11 +1853,44 @@ function setupEventListeners() {
         }
     });
 
-    // Bloom Toggle for Performance
+    // Bloom Toggle for Performance and Intensity Control
     const toggleBloom = document.getElementById("toggle-bloom");
-    toggleBloom.addEventListener("change", (e) => {
-        useBloom = e.target.checked;
-    });
+    const bloomIntensityContainer = document.getElementById("bloom-intensity-container");
+    const bloomIntensityInput = document.getElementById("bloom-intensity");
+    const bloomValSpan = document.getElementById("bloom-val");
+
+    const updateBloomUI = () => {
+        if (!bloomIntensityContainer || !bloomIntensityInput) return;
+        if (useBloom) {
+            bloomIntensityContainer.style.opacity = "1";
+            bloomIntensityInput.disabled = false;
+        } else {
+            bloomIntensityContainer.style.opacity = "0.4";
+            bloomIntensityInput.disabled = true;
+        }
+    };
+
+    if (toggleBloom) {
+        toggleBloom.addEventListener("change", (e) => {
+            useBloom = e.target.checked;
+            updateBloomUI();
+        });
+    }
+
+    if (bloomIntensityInput) {
+        bloomIntensityInput.addEventListener("input", (e) => {
+            const val = parseFloat(e.target.value);
+            if (bloomValSpan) {
+                bloomValSpan.textContent = val.toFixed(1);
+            }
+            if (bloomPass) {
+                bloomPass.strength = val;
+            }
+        });
+    }
+
+    // Run initial UI state check
+    updateBloomUI();
 
     // Reboot commands
     const rebootBtn = document.getElementById("btn-reboot");
@@ -1833,8 +1901,12 @@ function setupEventListeners() {
             ws.send(JSON.stringify({ type: "reboot_grid" }));
         }
     };
-    rebootBtn.addEventListener("click", sendReboot);
-    auditRebootBtn.addEventListener("click", sendReboot);
+    if (rebootBtn) {
+        rebootBtn.addEventListener("click", sendReboot);
+    }
+    if (auditRebootBtn) {
+        auditRebootBtn.addEventListener("click", sendReboot);
+    }
 
     // Override manual strategy buttons
     document.querySelectorAll(".btn-override").forEach(btn => {

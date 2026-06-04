@@ -523,7 +523,31 @@ impl Player {
         let mut routing_target = self.target_pos;
         let player_z = self.pos[2];
         let target_z = self.target_pos[2];
-        let needs_height_change = (target_z - player_z).abs() > 3.0;
+
+        let mut player_on_any_ramp = false;
+        let mut target_on_same_ramp = false;
+        for ramp in &map_layout.ramps {
+            let p_on = self.pos[0] >= ramp.x1 - 1.0
+                && self.pos[0] <= ramp.x2 + 1.0
+                && self.pos[1] >= ramp.y1 - 1.0
+                && self.pos[1] <= ramp.y2 + 1.0;
+            if p_on {
+                player_on_any_ramp = true;
+                let t_on = self.target_pos[0] >= ramp.x1 - 1.0
+                    && self.target_pos[0] <= ramp.x2 + 1.0
+                    && self.target_pos[1] >= ramp.y1 - 1.0
+                    && self.target_pos[1] <= ramp.y2 + 1.0;
+                if t_on {
+                    target_on_same_ramp = true;
+                }
+                break;
+            }
+        }
+
+        let mut needs_height_change = (target_z - player_z).abs() > 3.0;
+        if player_on_any_ramp && !target_on_same_ramp {
+            needs_height_change = true;
+        }
 
         if needs_height_change {
             // Find the nearest ramp on the same map half that can bridge the height gap
@@ -612,13 +636,15 @@ impl Player {
             }
         }
 
-        // Add dynamic, ID-based spread offsets to keep teammates from mimicking each other or stacking
-        let spread_angle = (self.id as f32 * 1.5) + (self.pos[0] * 0.05) + (self.pos[1] * 0.05);
-        let spread_dist = if self.state == "RUN_FLAG" { 1.5 } else { 3.5 };
-        routing_target[0] += spread_angle.cos() * spread_dist;
-        routing_target[1] += spread_angle.sin() * spread_dist;
-        routing_target[0] = routing_target[0].clamp(-95.0, 95.0);
-        routing_target[1] = routing_target[1].clamp(-95.0, 95.0);
+        if !needs_height_change {
+            // Add dynamic, ID-based spread offsets to keep teammates from mimicking each other or stacking
+            let spread_angle = (self.id as f32 * 1.5) + (self.pos[0] * 0.05) + (self.pos[1] * 0.05);
+            let spread_dist = if self.state == "RUN_FLAG" { 1.5 } else { 3.5 };
+            routing_target[0] += spread_angle.cos() * spread_dist;
+            routing_target[1] += spread_angle.sin() * spread_dist;
+            routing_target[0] = routing_target[0].clamp(-95.0, 95.0);
+            routing_target[1] = routing_target[1].clamp(-95.0, 95.0);
+        }
 
         // Navigation waypoint routing
         let nav_target = get_navigation_target(self.pos, routing_target, &map_layout.buildings, Some(&map_layout.platforms));
@@ -1051,21 +1077,9 @@ pub fn check_line_of_sight(
     true
 }
 
-pub fn get_navigation_target(p_pos: [f32; 3], target_pos: [f32; 3], buildings: &[crate::world::Building], platforms: Option<&[crate::world::Platform]>) -> [f32; 3] {
-    let empty_plats = Vec::new();
-    let plats = platforms.unwrap_or(&empty_plats);
-    if check_line_of_sight(p_pos, target_pos, buildings, plats, 2.0) {
+pub fn get_navigation_target(p_pos: [f32; 3], target_pos: [f32; 3], buildings: &[crate::world::Building], _platforms: Option<&[crate::world::Platform]>) -> [f32; 3] {
+    if check_line_of_sight(p_pos, target_pos, buildings, &[], 1.5) {
         return target_pos;
-    }
-
-    let mut current_platform = None;
-    if let Some(plats) = platforms {
-        for plat in plats {
-            if (p_pos[2] - plat.z).abs() < 1.0 && plat.x <= p_pos[0] && p_pos[0] <= plat.x + plat.w && plat.y <= p_pos[1] && p_pos[1] <= plat.y + plat.d {
-                current_platform = Some(plat);
-                break;
-            }
-        }
     }
 
     let mut waypoints = Vec::new();
@@ -1084,16 +1098,9 @@ pub fn get_navigation_target(p_pos: [f32; 3], target_pos: [f32; 3], buildings: &
             [bx2 + padding, by2 + padding, bz],
         ];
 
-        if let Some(plat) = current_platform {
-            for wp in &mut wps {
-                wp[0] = wp[0].clamp(plat.x + 1.0, plat.x + plat.w - 1.0);
-                wp[1] = wp[1].clamp(plat.y + 1.0, plat.y + plat.d - 1.0);
-            }
-        } else {
-            for wp in &mut wps {
-                wp[0] = wp[0].clamp(-95.0, 95.0);
-                wp[1] = wp[1].clamp(-95.0, 95.0);
-            }
+        for wp in &mut wps {
+            wp[0] = wp[0].clamp(-95.0, 95.0);
+            wp[1] = wp[1].clamp(-95.0, 95.0);
         }
         
         for wp in wps {
@@ -1103,7 +1110,7 @@ pub fn get_navigation_target(p_pos: [f32; 3], target_pos: [f32; 3], buildings: &
                 let bx1_b2 = b2.x;
                 let by1_b2 = b2.y;
                 let bx2_b2 = b2.x + b2.w;
-                let by2_b2 = b2.x + b2.d;
+                let by2_b2 = b2.y + b2.d;
                 let bz1_b2 = b2.z;
                 let bz2_b2 = b2.z + b2.h;
                 
@@ -1158,7 +1165,7 @@ pub fn get_navigation_target(p_pos: [f32; 3], target_pos: [f32; 3], buildings: &
             if visited[v] {
                 continue;
             }
-            if check_line_of_sight(nodes[u], nodes[v], buildings, plats, 2.0) {
+            if check_line_of_sight(nodes[u], nodes[v], buildings, &[], 1.5) {
                 let d = math::distance(nodes[u], nodes[v]);
                 let alt = dist[u] + d;
                 if alt < dist[v] {
@@ -1178,7 +1185,7 @@ pub fn get_navigation_target(p_pos: [f32; 3], target_pos: [f32; 3], buildings: &
         }
         // check furthest visible node in path
         for &node_idx in &path {
-            if check_line_of_sight(p_pos, nodes[node_idx], buildings, plats, 2.0) {
+            if check_line_of_sight(p_pos, nodes[node_idx], buildings, &[], 1.5) {
                 return nodes[node_idx];
             }
         }
@@ -1190,7 +1197,7 @@ pub fn get_navigation_target(p_pos: [f32; 3], target_pos: [f32; 3], buildings: &
     // Fallback: closest visible waypoint to target
     let mut valid_fallback_wps = Vec::new();
     for wp in nodes.iter().skip(2) {
-        if check_line_of_sight(p_pos, *wp, buildings, plats, 2.0) {
+        if check_line_of_sight(p_pos, *wp, buildings, &[], 1.5) {
             valid_fallback_wps.push(*wp);
         }
     }

@@ -143,7 +143,7 @@ impl GameEngine {
         });
 
         let mut engine = Self {
-            map_layout,
+            map_layout: map_layout.clone(),
             state: "PREGAME".to_string(),
             timer: 15.0,
             match_time: MATCH_TIME_LIMIT,
@@ -163,6 +163,15 @@ impl GameEngine {
             strategy_templates,
             summary_stats: serde_json::json!({}),
         };
+
+        println!("=== MAP ENVIRONMENT BUILD ===");
+        for p in &map_layout.platforms {
+            println!("  Platform: {} at x={}, y={}, w={}, d={}, z={}", p.id, p.x, p.y, p.w, p.d, p.z);
+        }
+        for b in &map_layout.buildings {
+            println!("  Building: {} at x={}, y={}, w={}, d={}, z={}, h={}", b.id, b.x, b.y, b.w, b.d, b.z, b.h);
+        }
+        println!("=============================");
 
         engine.init_players();
         engine

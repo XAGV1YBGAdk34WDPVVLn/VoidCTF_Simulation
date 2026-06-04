@@ -305,18 +305,30 @@ function buildMapEnvironment(layout) {
 function createFlagPedestal(team, pos) {
     const colorVal = TEAM_COLORS[team];
 
-    // Simplified wireframe pedestal — 8 segments only, no separate edge ring
+    // Translucent cylinder fill to match platforms and pillars
     const geom = new THREE.CylinderGeometry(5, 5, 1.2, 8);
     const mat = new THREE.MeshBasicMaterial({
         color: colorVal,
-        wireframe: true,
         transparent: true,
-        opacity: 0.5
+        opacity: 0.18,
+        depthWrite: false
     });
     const mesh = new THREE.Mesh(geom, mat);
     mesh.position.copy(pos);
     mesh.position.y += 0.6;
     scene.add(mesh);
+
+    // Blazing outer edges (double-layered for thickness and glow)
+    const edges = new THREE.EdgesGeometry(geom);
+    const glowColor = new THREE.Color(colorVal).multiplyScalar(10.0);
+    const lineMat = new THREE.LineBasicMaterial({ color: glowColor, linewidth: 3 });
+
+    const line1 = new THREE.LineSegments(edges, lineMat);
+    mesh.add(line1);
+
+    const line2 = new THREE.LineSegments(edges, lineMat);
+    line2.scale.set(1.002, 1.01, 1.002);
+    mesh.add(line2);
 
     // Create the Flag itself (stored in cache)
     const flagGroup = new THREE.Group();

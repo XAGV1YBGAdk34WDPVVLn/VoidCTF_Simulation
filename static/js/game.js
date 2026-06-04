@@ -1069,6 +1069,20 @@ function updateOverchargeNode(nodeData) {
             const innerMesh = new THREE.Mesh(innerGeo, innerMat);
             group.add(innerMesh);
             
+            // Neon vertical laser beam from the sky
+            const beamGeo = new THREE.CylinderGeometry(1.5, 1.5, 150, 16, 1, true);
+            const beamMat = new THREE.MeshBasicMaterial({
+                color: 0x9f00ff,
+                transparent: true,
+                opacity: 0.3,
+                blending: THREE.AdditiveBlending,
+                side: THREE.DoubleSide,
+                depthWrite: false
+            });
+            const beamMesh = new THREE.Mesh(beamGeo, beamMat);
+            beamMesh.position.y = 75; // Centered at y=75 relative to the node, going up to y=150
+            group.add(beamMesh);
+            
             scene.add(group);
             meshCache.overchargeNode = group;
         }
@@ -1078,6 +1092,15 @@ function updateOverchargeNode(nodeData) {
         const time = Date.now() * 0.003;
         meshCache.overchargeNode.rotation.y = time * 0.5;
         meshCache.overchargeNode.rotation.x = time * 0.3;
+        
+        // Animate beam rotation and slight pulsing/opacity flicker
+        if (meshCache.overchargeNode.children[2]) {
+            const beam = meshCache.overchargeNode.children[2];
+            beam.rotation.y = -time * 0.2;
+            const beamPulse = 1.0 + Math.sin(time * 6.0) * 0.08;
+            beam.scale.set(beamPulse, 1.0, beamPulse);
+            beam.material.opacity = 0.22 + Math.sin(time * 15.0) * 0.04;
+        }
         
         // Float relative to base Python Z coordinate mapped to Three Y
         const baseZ = nodeData.pos[2];

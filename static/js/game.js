@@ -387,6 +387,11 @@ function updateDOMState(gameState) {
     const pregameOverlay = document.getElementById("pregame-overlay");
     const auditOverlay = document.getElementById("audit-overlay");
     
+    // Always update tactics overlay sidebar/strategies so they don't get stuck on LOADING... if we refresh mid-game
+    if (gameState.tactics) {
+        updateTacticsOverlay(gameState.tactics);
+    }
+    
     if (gameState.state === "PREGAME") {
         if (pregameOverlay.classList.contains("hidden")) {
             pregameOverlay.classList.remove("hidden");

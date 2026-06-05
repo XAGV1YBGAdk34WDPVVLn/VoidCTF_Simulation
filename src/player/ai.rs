@@ -193,7 +193,10 @@ impl Player {
             }
         }
 
-        if ["INFILTRATE", "PATROL", "HEAL_ALLIED"].contains(&self.state.as_str()) && !self.has_flag {
+        if ["INFILTRATE", "PATROL", "HEAL_ALLIED"].contains(&self.state.as_str())
+            && !self.has_flag
+            && !(self.class_type == "Stalker" && self.state == "INFILTRATE")
+        {
             let node_active = overcharge_node.get("active").and_then(|v| v.as_bool()).unwrap_or(false);
             if node_active {
                 let enemy_flag_pos = enemy_flag.get("pos").and_then(|v| v.as_array()).map(|pos_arr| [
@@ -320,7 +323,26 @@ impl Player {
             }
         }
 
-        let needs_height_change = (target_z - natural_floor_z).abs() > 3.0;
+        let mut player_on_any_ramp = false;
+        let mut target_on_same_ramp = false;
+        for ramp in &map_layout.ramps {
+            let p_on = is_on_ramp(self.pos, ramp);
+            if p_on {
+                player_on_any_ramp = true;
+                let t_on = is_on_ramp(self.target_pos, ramp);
+                if t_on {
+                    target_on_same_ramp = true;
+                }
+                break;
+            }
+        }
+
+        let mut needs_height_change = (target_z - natural_floor_z).abs() > 3.0;
+        if player_on_any_ramp && !target_on_same_ramp {
+            if (target_z - player_z).abs() > 0.6 {
+                needs_height_change = true;
+            }
+        }
 
         if needs_height_change {
             let mut best_ramp: Option<&crate::world::Ramp> = None;

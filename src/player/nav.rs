@@ -121,15 +121,33 @@ pub fn get_navigation_target(
     p_pos: [f32; 3],
     target_pos: [f32; 3],
     buildings: &[Building],
-    _platforms: Option<&[Platform]>,
+    platforms: Option<&[Platform]>,
 ) -> [f32; 3] {
-    if check_line_of_sight(p_pos, target_pos, buildings, &[], 1.5) {
+    let mut all_obstacles = buildings.to_vec();
+    if let Some(plats) = platforms {
+        for p in plats {
+            // If the platform is higher than the player by more than 2.5 units, treat it as an obstacle
+            if p.z > p_pos[2] + 2.5 {
+                all_obstacles.push(Building {
+                    id: format!("plat_obs_{}", p.id),
+                    x: p.x,
+                    y: p.y,
+                    w: p.w,
+                    d: p.d,
+                    z: 0.0,
+                    h: p.z,
+                });
+            }
+        }
+    }
+
+    if check_line_of_sight(p_pos, target_pos, &all_obstacles, &[], 1.5) {
         return target_pos;
     }
 
     let mut waypoints = Vec::new();
     let padding = 7.0;
-    for b in buildings {
+    for b in &all_obstacles {
         let bx1 = b.x;
         let by1 = b.y;
         let bx2 = b.x + b.w;
@@ -150,7 +168,7 @@ pub fn get_navigation_target(
         
         for wp in wps {
             let mut inside_any = false;
-            for b2 in buildings {
+            for b2 in &all_obstacles {
                 let bx1_b2 = b2.x;
                 let by1_b2 = b2.y;
                 let bx2_b2 = b2.x + b2.w;
@@ -208,7 +226,7 @@ pub fn get_navigation_target(
             if visited[v] {
                 continue;
             }
-            if check_line_of_sight(nodes[u], nodes[v], buildings, &[], 1.5) {
+            if check_line_of_sight(nodes[u], nodes[v], &all_obstacles, &[], 1.5) {
                 let d = math::distance(nodes[u], nodes[v]);
                 let alt = dist[u] + d;
                 if alt < dist[v] {
@@ -227,7 +245,7 @@ pub fn get_navigation_target(
             curr = p;
         }
         for &node_idx in &path {
-            if check_line_of_sight(p_pos, nodes[node_idx], buildings, &[], 1.5) {
+            if check_line_of_sight(p_pos, nodes[node_idx], &all_obstacles, &[], 1.5) {
                 return nodes[node_idx];
             }
         }
@@ -238,7 +256,7 @@ pub fn get_navigation_target(
 
     let mut valid_fallback_wps = Vec::new();
     for wp in nodes.iter().skip(2) {
-        if check_line_of_sight(p_pos, *wp, buildings, &[], 1.5) {
+        if check_line_of_sight(p_pos, *wp, &all_obstacles, &[], 1.5) {
             valid_fallback_wps.push(*wp);
         }
     }

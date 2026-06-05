@@ -1,11 +1,7 @@
 // src/config.rs
 // Game settings and stats configuration.
 
-pub const MAP_WIDTH: f32 = 200.0;
-pub const MAP_DEPTH: f32 = 200.0;
 
-pub const TICK_RATE: u64 = 30;
-pub const TICK_INTERVAL: f32 = 1.0 / TICK_RATE as f32;
 
 pub const MATCH_TIME_LIMIT: f32 = 300.0; // 5 minutes in seconds
 pub const WINNING_CAPTURES: u32 = 3;

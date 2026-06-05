@@ -43,6 +43,7 @@ pub struct Ramp {
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct MapLayout {
+    pub name: String,
     pub style: i32,
     pub platforms: Vec<Platform>,
     pub buildings: Vec<Building>,
@@ -215,6 +216,7 @@ fn generate_midfield_dome_map() -> MapLayout {
     bases.insert("orange".to_string(), BaseInfo { pos: [80.0, 0.0, 0.0] });
 
     MapLayout {
+        name: "Central Arena".to_string(),
         style: 0,
         platforms,
         buildings,
@@ -322,6 +324,7 @@ fn generate_flanking_lanes_map() -> MapLayout {
     bases.insert("orange".to_string(), BaseInfo { pos: [80.0, 0.0, 0.0] });
 
     MapLayout {
+        name: "Flanking Lanes".to_string(),
         style: 1,
         platforms,
         buildings,
@@ -439,6 +442,7 @@ fn generate_fortress_map() -> MapLayout {
     bases.insert("orange".to_string(), BaseInfo { pos: [80.0, 0.0, 0.0] });
 
     MapLayout {
+        name: "Fortress Gates".to_string(),
         style: 2,
         platforms,
         buildings,

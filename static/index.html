@@ -36,6 +36,7 @@
             <div id="game-status-display" class="status-container">
                 <div id="status-label" class="status-label">PRE-GAME PROTOCOLS</div>
                 <div id="timer-display" class="timer-display">00:00</div>
+                <div id="map-name-display" class="map-name-display">MAP: LOADING...</div>
             </div>
             
             <div class="scoreboard">
@@ -49,6 +50,17 @@
                 </div>
             </div>
         </header>
+
+        <!-- Tournament Bracket HUD Panel -->
+        <section id="tournament-bracket-panel" class="hud-element tournament-bracket-panel collapsed">
+            <div class="bracket-toggle" id="bracket-toggle">
+                <span id="tournament-summary-text" class="neon-text-purple">TOURNAMENT SYSTEM ONLINE</span>
+                <span id="bracket-toggle-arrow" class="arrow">▼</span>
+            </div>
+            <div class="bracket-content" id="bracket-content">
+                <!-- Dynamic tournament visualization -->
+            </div>
+        </section>
 
         <!-- Left Column: Strategy and Vitals -->
         <aside class="hud-element sidebar left-sidebar">
@@ -211,6 +223,32 @@
         </div>
     </div>
 
-     <script src="/static/js/game.js?v=36"></script>
+    <!-- Champion / Celebration overlay -->
+    <div id="champion-overlay" class="modal-overlay hidden">
+        <div class="modal-content champion-modal">
+            <h1 class="champion-glow-text" id="champion-team-name">CHAMPION DECREED</h1>
+            <h2 class="champion-sub-title">GRID TOURNAMENT VECTOR ELITE</h2>
+            
+            <div class="champion-trophy">🏆</div>
+            
+            <div class="champion-info-container">
+                <p>Grid protocols successfully complete. Champion team is performing victor telemetry.</p>
+            </div>
+            
+            <div class="modal-actions" style="margin-top: 25px;">
+                <div class="celebration-reboot-label" style="font-family: var(--font-mono); font-size: 0.9rem; color: #a0aec0; letter-spacing: 1px;">
+                    INITIALIZING NEW GRID SECTOR IN <span id="celebration-countdown">15</span>s...
+                </div>
+            </div>
+        </div>
+    </div>
+
+     <script src="/static/js/game_globals.js"></script>
+     <script src="/static/js/game_init.js"></script>
+     <script src="/static/js/game_three.js"></script>
+     <script src="/static/js/game_ui.js"></script>
+     <script src="/static/js/game_render_player.js"></script>
+     <script src="/static/js/game_render_world.js"></script>
+     <script src="/static/js/game.js"></script>
 </body>
 </html>

@@ -7,6 +7,7 @@ mod world;
 mod player;
 mod engine;
 mod ai_tactics;
+mod tournament;
 
 use axum::{
     extract::{ws::{Message, WebSocket, WebSocketUpgrade}, State},
@@ -306,6 +307,26 @@ async fn run_sim_loop(state: Arc<AppState>) {
                 if engine_lock.timer > 0.0 {
                     engine_lock.timer -= dt;
                     if engine_lock.timer <= 0.0 {
+                        let blue_score = engine_lock.scores["blue"];
+                        let orange_score = engine_lock.scores["orange"];
+                        
+                        engine_lock.tournament.complete_current_match(blue_score, orange_score);
+                        
+                        if engine_lock.tournament.champion_index.is_some() {
+                            engine_lock.state = "CHAMPION_CELEBRATION".to_string();
+                            engine_lock.timer = 15.0; // 15 seconds celebration pose
+                        } else {
+                            engine_lock.tournament.current_match_index += 1;
+                            engine_lock.reset_match();
+                            auto_reboot = true;
+                        }
+                    }
+                }
+            } else if engine_lock.state == "CHAMPION_CELEBRATION" {
+                if engine_lock.timer > 0.0 {
+                    engine_lock.timer -= dt;
+                    if engine_lock.timer <= 0.0 {
+                        engine_lock.tournament.reset_tournament();
                         engine_lock.reset_match();
                         auto_reboot = true;
                     }

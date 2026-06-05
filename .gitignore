@@ -6,3 +6,7 @@
 .claude
 .idea
 .vscode
+server.log
+server.pid
+tournament_stats.json
+

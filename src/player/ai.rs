@@ -378,60 +378,70 @@ impl Player {
             let mut best_ramp: Option<&crate::world::Ramp> = None;
             let mut best_ramp_dist = f32::MAX;
 
-            let mut center_plat_w = 30.0;
-            for platform in &map_layout.platforms {
-                if platform.id == "p_mid_high" || platform.id == "p_center" {
-                    center_plat_w = platform.w;
+            // If the player is already on a ramp, keep using it!
+            for ramp in &map_layout.ramps {
+                if is_on_ramp(self.pos, ramp) {
+                    best_ramp = Some(ramp);
                     break;
                 }
             }
-            let mut is_in_center_crossing = self.pos[0].abs() <= center_plat_w / 2.0 + 1.0;
-            if !is_in_center_crossing {
-                for ramp in &map_layout.ramps {
-                    let r_max_z = ramp.z1.max(ramp.z2);
-                    if r_max_z > 9.5 && is_on_ramp(self.pos, ramp) {
-                        is_in_center_crossing = true;
+
+            if best_ramp.is_none() {
+                let mut center_plat_w = 30.0;
+                for platform in &map_layout.platforms {
+                    if platform.id == "p_mid_high" || platform.id == "p_center" {
+                        center_plat_w = platform.w;
                         break;
                     }
                 }
-            }
+                let mut is_in_center_crossing = self.pos[0].abs() <= center_plat_w / 2.0 + 1.0;
+                if !is_in_center_crossing {
+                    for ramp in &map_layout.ramps {
+                        let r_max_z = ramp.z1.max(ramp.z2);
+                        if r_max_z > 9.5 && is_on_ramp(self.pos, ramp) {
+                            is_in_center_crossing = true;
+                            break;
+                        }
+                    }
+                }
 
-            for ramp in &map_layout.ramps {
-                let center_x = (ramp.x1 + ramp.x2) / 2.0;
-                let center_y = (ramp.y1 + ramp.y2) / 2.0;
+                for ramp in &map_layout.ramps {
+                    let center_x = (ramp.x1 + ramp.x2) / 2.0;
+                    let center_y = (ramp.y1 + ramp.y2) / 2.0;
 
-                let ramp_side_matches = if is_in_center_crossing {
-                    (self.target_pos[0] < 0.0) == (center_x < 0.0)
-                } else {
-                    (self.pos[0] < 0.0) == (center_x < 0.0)
-                };
-
-                if ramp_side_matches {
-                    let r_z_min = ramp.z1.min(ramp.z2);
-                    let r_z_max = ramp.z1.max(ramp.z2);
-                    
-                    let player_on_ramp = is_on_ramp(self.pos, ramp);
-                    
-                    let is_reachable = player_on_ramp || if target_z > player_z {
-                        (r_z_min - player_z).abs() < 2.0
+                    let ramp_side_matches = if is_in_center_crossing {
+                        (self.target_pos[0] < 0.0) == (center_x < 0.0)
                     } else {
-                        (r_z_max - player_z).abs() < 2.0
+                        (self.pos[0] < 0.0) == (center_x < 0.0)
                     };
-                    
-                    let helps_direction = if target_z > player_z {
-                        r_z_max > player_z + 1.0 || (player_on_ramp && player_z < r_z_max - 0.5)
-                    } else {
-                        r_z_min < player_z - 1.0 || (player_on_ramp && player_z > r_z_min + 0.5)
-                    };
-                    
-                    if is_reachable && helps_direction {
-                        let dist = math::distance(
-                            [self.pos[0], self.pos[1], 0.0],
-                            [center_x, center_y, 0.0],
-                        );
-                        if dist < best_ramp_dist {
-                            best_ramp_dist = dist;
-                            best_ramp = Some(ramp);
+
+                    if ramp_side_matches {
+                        let r_z_min = ramp.z1.min(ramp.z2);
+                        let r_z_max = ramp.z1.max(ramp.z2);
+                        
+                        let player_on_ramp = is_on_ramp(self.pos, ramp);
+                        
+                        let is_reachable = player_on_ramp || if target_z > player_z {
+                            (r_z_min - player_z).abs() < 2.0
+                        } else {
+                            (r_z_max - player_z).abs() < 2.0
+                        };
+                        
+                        let helps_direction = if target_z > player_z {
+                            r_z_max > player_z + 1.0 || (player_on_ramp && player_z < r_z_max - 0.5)
+                        } else {
+                            r_z_min < player_z - 1.0 || (player_on_ramp && player_z > r_z_min + 0.5)
+                        };
+                        
+                        if is_reachable && helps_direction {
+                            let dist = math::distance(
+                                [self.pos[0], self.pos[1], 0.0],
+                                [center_x, center_y, 0.0],
+                            );
+                            if dist < best_ramp_dist {
+                                best_ramp_dist = dist;
+                                best_ramp = Some(ramp);
+                            }
                         }
                     }
                 }

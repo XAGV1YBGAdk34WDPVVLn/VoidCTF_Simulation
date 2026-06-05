@@ -338,13 +338,19 @@ function updateTournamentBracket(tournament, state) {
     // Auto expand/collapse based on game state
     const panel = document.getElementById("tournament-bracket-panel");
     if (panel) {
-        if (state === "PREGAME" || state === "AUDITING" || state === "CHAMPION_CELEBRATION") {
-            if (!panel.classList.contains("expanded")) {
-                panel.classList.add("expanded");
-            }
-        } else if (state === "RUNNING") {
-            if (lastState === "PREGAME" && panel.classList.contains("expanded")) {
-                panel.classList.remove("expanded");
+        if (state === "PREGAME") {
+            // Hide HUD bracket panel during pregame, since it is shown full-size in the pregame overlay dashboard
+            panel.style.display = "none";
+        } else {
+            panel.style.display = "block";
+            if (state === "AUDITING" || state === "CHAMPION_CELEBRATION") {
+                if (!panel.classList.contains("expanded")) {
+                    panel.classList.add("expanded");
+                }
+            } else if (state === "RUNNING") {
+                if (lastState === "PREGAME" && panel.classList.contains("expanded")) {
+                    panel.classList.remove("expanded");
+                }
             }
         }
     }
@@ -503,6 +509,12 @@ function updateTournamentBracket(tournament, state) {
         
         gridHtml += `</div>`;
         content.innerHTML = gridHtml;
+        
+        // Also populate the pregame dashboard bracket if it exists
+        const pregameContent = document.getElementById("pregame-bracket-content");
+        if (pregameContent) {
+            pregameContent.innerHTML = gridHtml;
+        }
     }
 }
 

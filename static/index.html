@@ -151,47 +151,60 @@
     <!-- Pregame / Loading screen overlay -->
     <div id="pregame-overlay" class="modal-overlay">
         <div class="modal-content text-glow">
-            <h1 class="logo-large"><span class="neon-text-blue">VOID</span> <span class="neon-text-orange">GRID</span></h1>
-            <h2 class="sub-title">GRID INITIALIZATION PROTOCOLS RUNNING</h2>
-            
-            <div class="countdown-spinner">
-                <svg viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="45" class="spinner-track"></circle>
-                    <circle cx="50" cy="50" r="45" class="spinner-fill"></circle>
-                </svg>
-                <div id="countdown-number" class="countdown-number">15</div>
+            <div class="pregame-header">
+                <div class="pregame-title-group">
+                    <h1 class="logo-large"><span class="neon-text-blue">VOID</span> <span class="neon-text-orange">GRID</span></h1>
+                    <h2 class="sub-title">GRID INITIALIZATION PROTOCOLS RUNNING</h2>
+                </div>
+                <div class="countdown-spinner">
+                    <svg viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="45" class="spinner-track"></circle>
+                        <circle cx="50" cy="50" r="45" class="spinner-fill"></circle>
+                    </svg>
+                    <div id="countdown-number" class="countdown-number">15</div>
+                </div>
             </div>
 
-            <div class="tactics-loading-status">
-                <div class="status-row">
-                    <span>Initializing Tactical Core (Blue Strategy)...</span>
-                    <span id="blue-tactics-status" class="status-indicator loading">PENDING</span>
-                </div>
-                <div class="status-row">
-                    <span>Initializing Tactical Core (Orange Strategy)...</span>
-                    <span id="orange-tactics-status" class="status-indicator loading">PENDING</span>
+            <!-- Dashboard Tournament Bracket -->
+            <div class="pregame-bracket-container">
+                <h3 class="section-title-neon">TOURNAMENT BRACKET PROGRESSION</h3>
+                <div id="pregame-bracket-content" class="pregame-bracket-content">
+                    <!-- Dynamic tournament visualization -->
                 </div>
             </div>
-            
-            <div class="manual-overrides">
-                <h3>FORCE TACTICAL CONFIGURATION:</h3>
-                <div class="override-row">
-                    <span>Blue:</span>
-                    <button class="btn btn-sm btn-override" data-team="blue" data-strat="RUSH">RUSH</button>
-                    <button class="btn btn-sm btn-override" data-team="blue" data-strat="TURTLE">TURTLE</button>
-                    <button class="btn btn-sm btn-override" data-team="blue" data-strat="SPLIT">SPLIT</button>
-                    <button class="btn btn-sm btn-override" data-team="blue" data-strat="FLANK">FLANK</button>
-                    <button class="btn btn-sm btn-override" data-team="blue" data-strat="HARASS">HARASS</button>
-                    <button class="btn btn-sm btn-override" data-team="blue" data-strat="COUNTER">COUNTER</button>
+
+            <div class="pregame-footer">
+                <div class="tactics-loading-status">
+                    <div class="status-row">
+                        <span>Initializing Tactical Core (Blue)...</span>
+                        <span id="blue-tactics-status" class="status-indicator loading">PENDING</span>
+                    </div>
+                    <div class="status-row">
+                        <span>Initializing Tactical Core (Orange)...</span>
+                        <span id="orange-tactics-status" class="status-indicator loading">PENDING</span>
+                    </div>
                 </div>
-                <div class="override-row">
-                    <span>Orange:</span>
-                    <button class="btn btn-sm btn-override" data-team="orange" data-strat="RUSH">RUSH</button>
-                    <button class="btn btn-sm btn-override" data-team="orange" data-strat="TURTLE">TURTLE</button>
-                    <button class="btn btn-sm btn-override" data-team="orange" data-strat="SPLIT">SPLIT</button>
-                    <button class="btn btn-sm btn-override" data-team="orange" data-strat="FLANK">FLANK</button>
-                    <button class="btn btn-sm btn-override" data-team="orange" data-strat="HARASS">HARASS</button>
-                    <button class="btn btn-sm btn-override" data-team="orange" data-strat="COUNTER">COUNTER</button>
+                
+                <div class="manual-overrides">
+                    <h3>FORCE TACTICAL CONFIGURATION:</h3>
+                    <div class="override-row">
+                        <span>Blue:</span>
+                        <button class="btn btn-sm btn-override" data-team="blue" data-strat="RUSH">RUSH</button>
+                        <button class="btn btn-sm btn-override" data-team="blue" data-strat="TURTLE">TURTLE</button>
+                        <button class="btn btn-sm btn-override" data-team="blue" data-strat="SPLIT">SPLIT</button>
+                        <button class="btn btn-sm btn-override" data-team="blue" data-strat="FLANK">FLANK</button>
+                        <button class="btn btn-sm btn-override" data-team="blue" data-strat="HARASS">HARASS</button>
+                        <button class="btn btn-sm btn-override" data-team="blue" data-strat="COUNTER">COUNTER</button>
+                    </div>
+                    <div class="override-row">
+                        <span>Orange:</span>
+                        <button class="btn btn-sm btn-override" data-team="orange" data-strat="RUSH">RUSH</button>
+                        <button class="btn btn-sm btn-override" data-team="orange" data-strat="TURTLE">TURTLE</button>
+                        <button class="btn btn-sm btn-override" data-team="orange" data-strat="SPLIT">SPLIT</button>
+                        <button class="btn btn-sm btn-override" data-team="orange" data-strat="FLANK">FLANK</button>
+                        <button class="btn btn-sm btn-override" data-team="orange" data-strat="HARASS">HARASS</button>
+                        <button class="btn btn-sm btn-override" data-team="orange" data-strat="COUNTER">COUNTER</button>
+                    </div>
                 </div>
             </div>
         </div>

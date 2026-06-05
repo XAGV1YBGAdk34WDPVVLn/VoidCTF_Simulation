@@ -332,10 +332,6 @@ function updateFlags(flagsData) {
 }
 
 function updateCamera(dt) {
-    if (cameraMode === "ghost" && currentGameState && currentGameState.state === "CHAMPION_CELEBRATION") {
-        cameraMode = "action";
-    }
-
     if (cameraMode === "ghost") {
         orbitControls.enabled = true;
         

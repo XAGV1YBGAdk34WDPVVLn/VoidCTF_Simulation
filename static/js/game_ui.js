@@ -333,7 +333,7 @@ function typewriteText(element, text) {
 }
 
 function updateTournamentBracket(tournament, state) {
-    if (!tournament) return;
+    if (!tournament || !tournament.matches || tournament.matches.length < 5 || !tournament.teams) return;
     
     // Auto expand/collapse based on game state
     const panel = document.getElementById("tournament-bracket-panel");

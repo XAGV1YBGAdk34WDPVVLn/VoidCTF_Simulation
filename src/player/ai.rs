@@ -61,6 +61,8 @@ impl Player {
         } else if !ally_flag.get("at_base").and_then(|v| v.as_bool()).unwrap_or(true) {
             if health_ratio < retreat_thresh && !close_to_free_enemy_flag && self.class_type == "Tactician" {
                 self.state = "RETREAT".to_string();
+            } else if close_to_free_enemy_flag {
+                self.state = "INFILTRATE".to_string();
             } else {
                 self.state = "RECOVER_FLAG".to_string();
             }

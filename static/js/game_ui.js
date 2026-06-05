@@ -30,7 +30,13 @@ function updateDOMState(gameState) {
             }
         }
         if (countdownEl) {
-            countdownEl.innerText = Math.ceil(gameState.timer);
+            const countdownVal = Math.ceil(gameState.timer);
+            if (countdownEl.innerText !== String(countdownVal)) {
+                countdownEl.innerText = countdownVal;
+                if (window.gridAudio && countdownVal > 0) {
+                    window.gridAudio.playTick(countdownVal === 1);
+                }
+            }
         }
         if (championOverlay && championOverlay.classList.contains("hidden")) {
             championOverlay.classList.remove("hidden");
@@ -53,6 +59,9 @@ function updateDOMState(gameState) {
         const countdownVal = Math.ceil(gameState.timer);
         if (countdownEl.innerText !== String(countdownVal)) {
             countdownEl.innerText = countdownVal;
+            if (window.gridAudio && countdownVal > 0) {
+                window.gridAudio.playTick(countdownVal === 1);
+            }
         }
         
         // Update Tactics fetching states
@@ -274,6 +283,23 @@ function updateHUD(gameState) {
                 div.innerHTML = `<span>${log}</span>`;
             }
             logBox.appendChild(div);
+
+            // Trigger synthesized sound effects based on log content
+            if (window.gridAudio) {
+                if (log.includes("SCORE!")) {
+                    window.gridAudio.playScore();
+                } else if (log.includes("picked up the MIDFIELD OVERCHARGE!")) {
+                    window.gridAudio.playOvercharge();
+                } else if (log.includes("secured") && log.includes("Flag")) {
+                    window.gridAudio.playFlagPickup();
+                } else if (log.includes("returned the") && log.includes("Flag")) {
+                    window.gridAudio.playFlagReturn();
+                } else if (log.includes("de-rezzed")) {
+                    window.gridAudio.playDeRez();
+                } else if (log.includes("Match started!")) {
+                    window.gridAudio.playMatchStart();
+                }
+            }
         }
         logOffset = gameState.logs.length;
         if (wasScrolledToBottom) {

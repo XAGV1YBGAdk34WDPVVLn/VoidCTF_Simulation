@@ -489,6 +489,9 @@ function updateBuzzsawTethers(gameState) {
                                     if (typeof spawnSparks === "function") {
                                         spawnSparks(sparkPos, c, 6);
                                     }
+                                    if (window.gridAudio) {
+                                        window.gridAudio.playSpark();
+                                    }
                                 }
                             }
                         });

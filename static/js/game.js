@@ -343,6 +343,37 @@ function setupEventListeners() {
         });
     }
 
+    // Audio Module controls
+    const btnMute = document.getElementById("btn-audio-mute");
+    if (btnMute) {
+        btnMute.addEventListener("click", () => {
+            if (window.gridAudio) {
+                window.gridAudio.init();
+                window.gridAudio.toggleMute();
+            }
+        });
+    }
+
+    const volumeSlider = document.getElementById("audio-volume");
+    if (volumeSlider) {
+        volumeSlider.addEventListener("input", (e) => {
+            if (window.gridAudio) {
+                window.gridAudio.init();
+                window.gridAudio.setVolume(parseFloat(e.target.value) / 100);
+            }
+        });
+    }
+
+    const initAudioOnInteract = () => {
+        if (window.gridAudio) {
+            window.gridAudio.init();
+        }
+        document.removeEventListener("click", initAudioOnInteract);
+        document.removeEventListener("keydown", initAudioOnInteract);
+    };
+    document.addEventListener("click", initAudioOnInteract);
+    document.addEventListener("keydown", initAudioOnInteract);
+
     window.addEventListener("keydown", (e) => {
         if (['KeyW', 'KeyS', 'KeyA', 'KeyD', 'Space', 'ShiftLeft'].includes(e.code)) {
             keyStates[e.code] = true;

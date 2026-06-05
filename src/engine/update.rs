@@ -232,6 +232,7 @@ impl GameEngine {
             }
 
             self.update_projectiles(dt, time_now);
+            self.update_buzzsaw_tethers(dt, time_now);
             self.update_flags();
 
             if self.scores["blue"] >= WINNING_CAPTURES {
@@ -239,6 +240,119 @@ impl GameEngine {
             } else if self.scores["orange"] >= WINNING_CAPTURES {
                 self.end_match(Some("orange".to_string()));
             }
+        }
+    }
+
+    pub fn update_buzzsaw_tethers(&mut self, dt: f32, time_now: f32) {
+        let player_ids: Vec<u32> = self.players.keys().cloned().collect();
+        let mut active_links = Vec::new();
+
+        for i in 0..player_ids.len() {
+            for j in (i + 1)..player_ids.len() {
+                let id1 = player_ids[i];
+                let id2 = player_ids[j];
+                
+                let (team1, pos1, alive1) = {
+                    let p1 = &self.players[&id1];
+                    (p1.team.clone(), p1.pos, p1.is_alive)
+                };
+                let (team2, pos2, alive2) = {
+                    let p2 = &self.players[&id2];
+                    (p2.team.clone(), p2.pos, p2.is_alive)
+                };
+
+                if alive1 && alive2 && team1 == team2 {
+                    let dist = crate::math::distance(pos1, pos2);
+                    if dist <= 25.0 {
+                        active_links.push((id1, id2, team1, pos1, pos2));
+                    }
+                }
+            }
+        }
+
+        let damage_rate = 60.0;
+        let damage_amt = damage_rate * dt;
+        let mut attacker_damage_dealt = std::collections::HashMap::new();
+        let mut attacker_kills = std::collections::HashMap::new();
+        let mut events_to_log = Vec::new();
+
+        for (id1, _id2, team, pos1, pos2) in active_links {
+            let enemy_team = if team == "blue" { "orange" } else { "blue" };
+            let segment_vec = crate::math::sub(pos2, pos1);
+            let segment_len_sq = segment_vec[0] * segment_vec[0] + segment_vec[1] * segment_vec[1] + segment_vec[2] * segment_vec[2];
+
+            for enemy in self.players.values_mut() {
+                if enemy.is_alive && enemy.team == enemy_team {
+                    let mut affected = false;
+
+                    let dist_to_p1 = crate::math::distance(enemy.pos, pos1);
+                    let dist_to_p2 = crate::math::distance(enemy.pos, pos2);
+                    if dist_to_p1 <= 3.5 || dist_to_p2 <= 3.5 {
+                        affected = true;
+                    }
+
+                    if !affected && segment_len_sq > 0.001 {
+                        let to_enemy = crate::math::sub(enemy.pos, pos1);
+                        let dot_product = to_enemy[0] * segment_vec[0] + to_enemy[1] * segment_vec[1] + to_enemy[2] * segment_vec[2];
+                        let t = (dot_product / segment_len_sq).clamp(0.0, 1.0);
+                        
+                        let nearest_point = [
+                            pos1[0] + t * segment_vec[0],
+                            pos1[1] + t * segment_vec[1],
+                            pos1[2] + t * segment_vec[2],
+                        ];
+                        
+                        let dist_to_segment = crate::math::distance(enemy.pos, nearest_point);
+                        if dist_to_segment <= 3.0 {
+                            affected = true;
+                        }
+                    }
+
+                    if affected {
+                        let mut dmg = damage_amt;
+                        if enemy.is_shielding {
+                            dmg *= 0.3;
+                        }
+                        let de_rezzed = enemy.take_damage(dmg, time_now);
+                        
+                        *attacker_damage_dealt.entry(id1).or_insert(0.0) += dmg;
+                        if de_rezzed {
+                            *attacker_kills.entry(id1).or_insert(0) += 1;
+                            events_to_log.push((id1, enemy.name.clone(), enemy.class_type.clone()));
+                        }
+                    }
+                }
+            }
+        }
+
+        // Apply attacker stats updates after mutable borrow loop is complete
+        for (att_id, dmg) in attacker_damage_dealt {
+            if let Some(attacker) = self.players.get_mut(&att_id) {
+                attacker.damage_dealt += dmg as i32;
+            }
+        }
+        for (att_id, kills) in attacker_kills {
+            if let Some(attacker) = self.players.get_mut(&att_id) {
+                attacker.kills += kills;
+            }
+        }
+
+        let mut logs = Vec::new();
+        for (att_id, enemy_name, enemy_class) in events_to_log {
+            if let Some(attacker) = self.players.get(&att_id) {
+                logs.push(format!(
+                    "{} ({}) de-rezzed {} ({}) via Linked Buzzsaw Grid",
+                    attacker.name, attacker.class_type, enemy_name, enemy_class
+                ));
+            }
+        }
+
+        let has_logs = !logs.is_empty();
+        for event in logs {
+            self.log_event(&event);
+        }
+        if has_logs {
+            self.last_action_time = self.sim_time;
         }
     }
 }

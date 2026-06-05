@@ -62,6 +62,40 @@ function updatePlayerMesh(p, serverTime) {
         shieldMesh.rotation.y = Math.PI / 2;
         shieldMesh.visible = false;
         group.add(shieldMesh);
+
+        // 3D Linked Orbit Shield (Circular Buzzsaw)
+        const orbitShieldGroup = new THREE.Group();
+        orbitShieldGroup.position.y = heightOffset;
+        
+        // Circular ring track
+        const trackGeom = new THREE.TorusGeometry(3.0, 0.04, 4, 32);
+        const trackMat = new THREE.MeshBasicMaterial({
+            color: teamColor,
+            transparent: true,
+            opacity: 0.25
+        });
+        const trackMesh = new THREE.Mesh(trackGeom, trackMat);
+        trackMesh.rotation.x = Math.PI / 2;
+        orbitShieldGroup.add(trackMesh);
+
+        // Blade 1
+        const blade1Geom = new THREE.TorusGeometry(0.5, 0.08, 6, 16);
+        const blade1Mat = new THREE.MeshBasicMaterial({ color: teamColor });
+        const blade1Mesh = new THREE.Mesh(blade1Geom, blade1Mat);
+        blade1Mesh.position.set(3.0, 0.0, 0.0);
+        blade1Mesh.rotation.x = Math.PI / 2;
+        orbitShieldGroup.add(blade1Mesh);
+
+        // Blade 2
+        const blade2Geom = new THREE.TorusGeometry(0.5, 0.08, 6, 16);
+        const blade2Mat = new THREE.MeshBasicMaterial({ color: teamColor });
+        const blade2Mesh = new THREE.Mesh(blade2Geom, blade2Mat);
+        blade2Mesh.position.set(-3.0, 0.0, 0.0);
+        blade2Mesh.rotation.x = Math.PI / 2;
+        orbitShieldGroup.add(blade2Mesh);
+
+        orbitShieldGroup.visible = false;
+        group.add(orbitShieldGroup);
         
         // Light Trail (Rendered as a 3D wall of light with volume and thickness)
         const trailMaxPoints = 30;
@@ -114,6 +148,7 @@ function updatePlayerMesh(p, serverTime) {
             group: group,
             bodyMesh: bodyMesh,
             shieldMesh: shieldMesh,
+            orbitShieldGroup: orbitShieldGroup,
             trailLine: trailLine,
             trailPoints: [],
             lastPos: pyToThreeVec(p.pos),
@@ -127,7 +162,7 @@ function updatePlayerMesh(p, serverTime) {
         meshCache.players[p.id] = playerObj;
     }
 
-    const { group, bodyMesh, shieldMesh, trailLine, trailPoints, lastPos } = playerObj;
+    const { group, bodyMesh, shieldMesh, orbitShieldGroup, trailLine, trailPoints, lastPos } = playerObj;
 
     // Dynamically update materials color if team color changes (e.g. during tournament matches)
     if (bodyMesh.material) {
@@ -142,6 +177,14 @@ function updatePlayerMesh(p, serverTime) {
     });
     if (shieldMesh && shieldMesh.material) {
         shieldMesh.material.color.copy(new THREE.Color(teamColor).multiplyScalar(2.5));
+    }
+    if (orbitShieldGroup) {
+        const trackMesh = orbitShieldGroup.children[0];
+        const blade1 = orbitShieldGroup.children[1];
+        const blade2 = orbitShieldGroup.children[2];
+        if (trackMesh && trackMesh.material) trackMesh.material.color.setHex(teamColor);
+        if (blade1 && blade1.material) blade1.material.color.setHex(teamColor);
+        if (blade2 && blade2.material) blade2.material.color.setHex(teamColor);
     }
 
     const targetPos = pyToThreeVec(p.pos);
@@ -204,6 +247,16 @@ function updatePlayerMesh(p, serverTime) {
     shieldMesh.visible = p.is_shielding;
     if (p.is_shielding) {
         shieldMesh.rotation.z += 0.05;
+    }
+
+    // Orbit Shield (Linked Buzzsaw)
+    if (orbitShieldGroup) {
+        orbitShieldGroup.visible = !!playerObj.isLinked;
+        if (playerObj.isLinked) {
+            orbitShieldGroup.rotation.y = (Date.now() * 0.012) % (Math.PI * 2);
+            orbitShieldGroup.children[1].rotation.z = (Date.now() * 0.035) % (Math.PI * 2);
+            orbitShieldGroup.children[2].rotation.z = (Date.now() * 0.035) % (Math.PI * 2);
+        }
     }
 
     // 3. Tactician healing beam

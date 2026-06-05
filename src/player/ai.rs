@@ -28,6 +28,20 @@ impl Player {
         let enemy_team = if self.team == "blue" { "orange" } else { "blue" };
         let enemy_flag = &flags[enemy_team];
 
+        let mut close_to_free_enemy_flag = false;
+        if enemy_flag.get("carrier_id").map_or(true, |v| v.is_null()) {
+            if let Some(pos_val) = enemy_flag.get("pos").and_then(|v| v.as_array()) {
+                let ef_pos = [
+                    pos_val[0].as_f64().unwrap_or(0.0) as f32,
+                    pos_val[1].as_f64().unwrap_or(0.0) as f32,
+                    pos_val[2].as_f64().unwrap_or(0.0) as f32,
+                ];
+                if math::distance(self.pos, ef_pos) < 25.0 {
+                    close_to_free_enemy_flag = true;
+                }
+            }
+        }
+
         let strat_mods = strategy_templates.get(&self.strategy)
             .or_else(|| strategy_templates.get("SPLIT"))
             .unwrap();
@@ -42,15 +56,15 @@ impl Player {
 
         if self.has_flag {
             self.state = "RUN_FLAG".to_string();
-        } else if was_retreating && health_ratio < 0.90 && (self.class_type == "Tactician" || ally_flag.get("at_base").and_then(|v| v.as_bool()).unwrap_or(true)) {
+        } else if was_retreating && health_ratio < 0.90 && !close_to_free_enemy_flag && (self.class_type == "Tactician" || ally_flag.get("at_base").and_then(|v| v.as_bool()).unwrap_or(true)) {
             self.state = "RETREAT".to_string();
         } else if !ally_flag.get("at_base").and_then(|v| v.as_bool()).unwrap_or(true) {
-            if health_ratio < retreat_thresh && self.class_type == "Tactician" {
+            if health_ratio < retreat_thresh && !close_to_free_enemy_flag && self.class_type == "Tactician" {
                 self.state = "RETREAT".to_string();
             } else {
                 self.state = "RECOVER_FLAG".to_string();
             }
-        } else if health_ratio < retreat_thresh {
+        } else if health_ratio < retreat_thresh && !close_to_free_enemy_flag {
             self.state = "RETREAT".to_string();
         } else if self.class_type == "Tactician" && allies.iter().any(|a| (a.hp / a.max_hp) < 0.6) {
             self.state = "HEAL_ALLIED".to_string();
@@ -172,6 +186,21 @@ impl Player {
                             return platform.z;
                         }
                     }
+                    for ramp in &layout.ramps {
+                        if x >= ramp.x1 && x <= ramp.x2 && y >= ramp.y1 && y <= ramp.y2 {
+                            let x_span = ramp.x2 - ramp.x1;
+                            if x_span > 0.0 {
+                                let ratio = (x - ramp.x1) / x_span;
+                                return ramp.z1 + ratio * (ramp.z2 - ramp.z1);
+                            }
+                        }
+                    }
+                    for base in layout.bases.values() {
+                        let dist_2d = math::distance([x, y, 0.0], [base.pos[0], base.pos[1], 0.0]);
+                        if dist_2d <= 6.0 {
+                            return 1.5;
+                        }
+                    }
                     0.0
                 };
                 if self.class_type == "Enforcer" {
@@ -238,7 +267,7 @@ impl Player {
 
         if ["INFILTRATE", "PATROL", "HEAL_ALLIED", "RETREAT"].contains(&self.state.as_str()) && !self.has_flag {
             let was_taking_cover = self.is_taking_cover;
-            let needs_cover = (self.shield < self.max_shield * 0.25) || (was_taking_cover && self.shield < self.max_shield * 0.75);
+            let needs_cover = !close_to_free_enemy_flag && ((self.shield < self.max_shield * 0.25) || (was_taking_cover && self.shield < self.max_shield * 0.75));
 
             if needs_cover {
                 let mut visible_enemies = Vec::new();
@@ -305,7 +334,8 @@ impl Player {
         let mut natural_floor_z = 0.0;
         for platform in &map_layout.platforms {
             if platform.x <= self.pos[0] && self.pos[0] <= platform.x + platform.w 
-               && platform.y <= self.pos[1] && self.pos[1] <= platform.y + platform.d {
+               && platform.y <= self.pos[1] && self.pos[1] <= platform.y + platform.d
+               && (self.pos[2] - platform.z).abs() < 3.0 {
                 natural_floor_z = platform.z;
                 break;
             }
@@ -347,10 +377,36 @@ impl Player {
         if needs_height_change {
             let mut best_ramp: Option<&crate::world::Ramp> = None;
             let mut best_ramp_dist = f32::MAX;
+
+            let mut center_plat_w = 30.0;
+            for platform in &map_layout.platforms {
+                if platform.id == "p_mid_high" || platform.id == "p_center" {
+                    center_plat_w = platform.w;
+                    break;
+                }
+            }
+            let mut is_in_center_crossing = self.pos[0].abs() <= center_plat_w / 2.0 + 1.0;
+            if !is_in_center_crossing {
+                for ramp in &map_layout.ramps {
+                    let r_max_z = ramp.z1.max(ramp.z2);
+                    if r_max_z > 11.0 && is_on_ramp(self.pos, ramp) {
+                        is_in_center_crossing = true;
+                        break;
+                    }
+                }
+            }
+
             for ramp in &map_layout.ramps {
                 let center_x = (ramp.x1 + ramp.x2) / 2.0;
                 let center_y = (ramp.y1 + ramp.y2) / 2.0;
-                if (self.pos[0] < 0.0) == (center_x < 0.0) {
+
+                let ramp_side_matches = if is_in_center_crossing {
+                    (self.target_pos[0] < 0.0) == (center_x < 0.0)
+                } else {
+                    (self.pos[0] < 0.0) == (center_x < 0.0)
+                };
+
+                if ramp_side_matches {
                     let r_z_min = ramp.z1.min(ramp.z2);
                     let r_z_max = ramp.z1.max(ramp.z2);
                     
@@ -422,7 +478,7 @@ impl Player {
         }
 
         if !needs_height_change {
-            let spread_angle = (self.id as f32 * 1.5) + (self.pos[0] * 0.05) + (self.pos[1] * 0.05);
+            let spread_angle = self.id as f32 * 2.0;
             let spread_dist = if self.state == "RUN_FLAG" { 1.5 } else { 3.5 };
             routing_target[0] += spread_angle.cos() * spread_dist;
             routing_target[1] += spread_angle.sin() * spread_dist;
@@ -448,7 +504,7 @@ impl Player {
             1.0
         };
 
-        let target_distance = math::distance(self.target_pos, self.pos);
+        let target_distance = math::distance(routing_target, self.pos);
         let speed_factor = if target_distance < 2.0 {
             (target_distance / 2.0).clamp(0.15, 1.0)
         } else {

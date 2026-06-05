@@ -7,6 +7,9 @@ function processStateUpdate(gameState) {
         updatePlayerMesh(playerData, serverTime);
     });
 
+    // Update Buzzsaw Tethers (Laser Link Bridges between teammates)
+    updateBuzzsawTethers(gameState);
+
     // Update Projectiles (Light Discs)
     updateProjectiles(gameState.projectiles, serverTime);
 
@@ -426,4 +429,85 @@ function updateCamera(dt) {
             }
         }
     }
+}
+
+function updateBuzzsawTethers(gameState) {
+    // Reset link flags for all cached players first
+    Object.values(meshCache.players).forEach(pObj => {
+        pObj.isLinked = false;
+    });
+
+    meshCache.linkBeams = meshCache.linkBeams || {};
+    const activeBeamIds = new Set();
+    const alivePlayers = Object.values(gameState.players).filter(p => p.is_alive);
+
+    // Check distances for teammates
+    for (let i = 0; i < alivePlayers.length; i++) {
+        for (let j = i + 1; j < alivePlayers.length; j++) {
+            const pA = alivePlayers[i];
+            const pB = alivePlayers[j];
+            if (pA.team === pB.team) {
+                const dist = Math.hypot(pA.pos[0] - pB.pos[0], pA.pos[1] - pB.pos[1]);
+                if (dist <= 25.0) {
+                    const pAObj = meshCache.players[pA.id];
+                    const pBObj = meshCache.players[pB.id];
+                    if (pAObj) pAObj.isLinked = true;
+                    if (pBObj) pBObj.isLinked = true;
+
+                    if (pAObj && pBObj) {
+                        const id = `${pA.id}_${pB.id}`;
+                        activeBeamIds.add(id);
+                        updateLinkBeam(id, pAObj.group.position, pBObj.group.position, TEAM_COLORS[pA.team]);
+                    }
+                }
+            }
+        }
+    }
+
+    // Clean up expired beams
+    Object.keys(meshCache.linkBeams).forEach(id => {
+        if (!activeBeamIds.has(id)) {
+            scene.remove(meshCache.linkBeams[id].mesh);
+            delete meshCache.linkBeams[id];
+        }
+    });
+}
+
+function updateLinkBeam(id, posA, posB, teamColor) {
+    let beamObj = meshCache.linkBeams[id];
+    if (!beamObj) {
+        // Create cylinder representing the buzzsaw bridge
+        const geom = new THREE.CylinderGeometry(0.18, 0.18, 1.0, 6);
+        const mat = new THREE.MeshBasicMaterial({
+            color: teamColor,
+            transparent: true,
+            opacity: 0.5,
+            wireframe: true
+        });
+        const mesh = new THREE.Mesh(geom, mat);
+        scene.add(mesh);
+        beamObj = { mesh: mesh };
+        meshCache.linkBeams[id] = beamObj;
+    }
+
+    const mesh = beamObj.mesh;
+    mesh.visible = true;
+
+    const dir = new THREE.Vector3().subVectors(posB, posA);
+    const length = dir.length();
+    
+    // Position at midpoint (elevated to align with players)
+    const midpoint = new THREE.Vector3().addVectors(posA, posB).multiplyScalar(0.5);
+    midpoint.y += 1.6;
+    mesh.position.copy(midpoint);
+    
+    // Scale length along its Y-axis
+    mesh.scale.set(1.0, length, 1.0);
+    
+    // Rotate cylinder to point from A to B
+    const up = new THREE.Vector3(0, 1, 0);
+    mesh.quaternion.setFromUnitVectors(up, dir.clone().normalize());
+
+    // Rotate cylinder on its Y-axis to animate the buzzsaw energy field!
+    mesh.rotation.y = (Date.now() * 0.01) % (Math.PI * 2);
 }

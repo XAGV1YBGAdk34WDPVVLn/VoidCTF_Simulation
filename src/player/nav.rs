@@ -164,9 +164,9 @@ pub fn get_navigation_target(
                 all_obstacles.push(Building {
                     id: format!("ramp_side_bot_{}", r.id),
                     x: r.x1,
-                    y: r.y1 - 1.0,
+                    y: r.y1 - 0.2,
                     w: r.x2 - r.x1,
-                    d: 1.0,
+                    d: 0.2,
                     z: 0.0,
                     h: r_max_z,
                 });
@@ -176,7 +176,7 @@ pub fn get_navigation_target(
                     x: r.x1,
                     y: r.y2,
                     w: r.x2 - r.x1,
-                    d: 1.0,
+                    d: 0.2,
                     z: 0.0,
                     h: r_max_z,
                 });
@@ -184,7 +184,7 @@ pub fn get_navigation_target(
         }
     }
 
-    if check_line_of_sight(p_pos, target_pos, &all_obstacles, &[], 1.5) {
+    if check_line_of_sight(p_pos, target_pos, &all_obstacles, &[], 2.2) {
         return target_pos;
     }
 
@@ -269,7 +269,7 @@ pub fn get_navigation_target(
             if visited[v] {
                 continue;
             }
-            if check_line_of_sight(nodes[u], nodes[v], &all_obstacles, &[], 1.5) {
+            if check_line_of_sight(nodes[u], nodes[v], &all_obstacles, &[], 2.2) {
                 let d = math::distance(nodes[u], nodes[v]);
                 let alt = dist[u] + d;
                 if alt < dist[v] {
@@ -288,7 +288,7 @@ pub fn get_navigation_target(
             curr = p;
         }
         for &node_idx in &path {
-            if check_line_of_sight(p_pos, nodes[node_idx], &all_obstacles, &[], 1.5) {
+            if check_line_of_sight(p_pos, nodes[node_idx], &all_obstacles, &[], 2.2) {
                 return nodes[node_idx];
             }
         }
@@ -299,7 +299,7 @@ pub fn get_navigation_target(
 
     let mut valid_fallback_wps = Vec::new();
     for wp in nodes.iter().skip(2) {
-        if check_line_of_sight(p_pos, *wp, &all_obstacles, &[], 1.5) {
+        if check_line_of_sight(p_pos, *wp, &all_obstacles, &[], 2.2) {
             valid_fallback_wps.push(*wp);
         }
     }

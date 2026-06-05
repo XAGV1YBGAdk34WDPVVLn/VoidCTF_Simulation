@@ -111,6 +111,8 @@ impl TournamentState {
         let pool_a_orange = indices[1];
         let pool_b_blue = indices[2];
         let pool_b_orange = indices[3];
+        let pool_c_blue = indices[4];
+        let pool_c_orange = indices[5];
 
         let matches = vec![
             TournamentMatch {
@@ -135,6 +137,26 @@ impl TournamentState {
             },
             TournamentMatch {
                 id: 2,
+                name: "Pool C".to_string(),
+                blue_team_index: pool_c_blue,
+                orange_team_index: pool_c_orange,
+                winner_team_index: None,
+                blue_score: None,
+                orange_score: None,
+                is_completed: false,
+            },
+            TournamentMatch {
+                id: 3,
+                name: "Semi-Finals".to_string(),
+                blue_team_index: 0,   // Placeholder
+                orange_team_index: 0, // Placeholder
+                winner_team_index: None,
+                blue_score: None,
+                orange_score: None,
+                is_completed: false,
+            },
+            TournamentMatch {
+                id: 4,
                 name: "Finals".to_string(),
                 blue_team_index: 0,   // Placeholder
                 orange_team_index: 0, // Placeholder
@@ -167,6 +189,8 @@ impl TournamentState {
         let pool_a_orange = indices[1];
         let pool_b_blue = indices[2];
         let pool_b_orange = indices[3];
+        let pool_c_blue = indices[4];
+        let pool_c_orange = indices[5];
 
         self.matches = vec![
             TournamentMatch {
@@ -191,9 +215,29 @@ impl TournamentState {
             },
             TournamentMatch {
                 id: 2,
+                name: "Pool C".to_string(),
+                blue_team_index: pool_c_blue,
+                orange_team_index: pool_c_orange,
+                winner_team_index: None,
+                blue_score: None,
+                orange_score: None,
+                is_completed: false,
+            },
+            TournamentMatch {
+                id: 3,
+                name: "Semi-Finals".to_string(),
+                blue_team_index: 0,
+                orange_team_index: 0,
+                winner_team_index: None,
+                blue_score: None,
+                orange_score: None,
+                is_completed: false,
+            },
+            TournamentMatch {
+                id: 4,
                 name: "Finals".to_string(),
-                blue_team_index: 0,   // Placeholder
-                orange_team_index: 0, // Placeholder
+                blue_team_index: 0,
+                orange_team_index: 0,
                 winner_team_index: None,
                 blue_score: None,
                 orange_score: None,

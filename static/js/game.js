@@ -335,6 +335,14 @@ function setupEventListeners() {
         });
     });
 
+    const bracketToggleBtn = document.getElementById("bracket-toggle");
+    const bracketPanel = document.getElementById("tournament-bracket-panel");
+    if (bracketToggleBtn && bracketPanel) {
+        bracketToggleBtn.addEventListener("click", () => {
+            bracketPanel.classList.toggle("expanded");
+        });
+    }
+
     window.addEventListener("keydown", (e) => {
         if (['KeyW', 'KeyS', 'KeyA', 'KeyD', 'Space', 'ShiftLeft'].includes(e.code)) {
             keyStates[e.code] = true;

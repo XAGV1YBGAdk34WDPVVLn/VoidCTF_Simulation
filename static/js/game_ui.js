@@ -349,16 +349,7 @@ function updateTournamentBracket(tournament, state) {
         }
     }
 
-    // Toggle functionality
-    if (!isBracketInitialized) {
-        const toggleBtn = document.getElementById("bracket-toggle");
-        if (toggleBtn && panel) {
-            toggleBtn.addEventListener("click", () => {
-                panel.classList.toggle("expanded");
-            });
-            isBracketInitialized = true;
-        }
-    }
+
     
     // Summary toggle header text
     const summaryText = document.getElementById("tournament-summary-text");
@@ -508,5 +499,4 @@ function updateTournamentBracket(tournament, state) {
     }
 }
 
-let isBracketInitialized = false;
 let lastState = null;

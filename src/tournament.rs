@@ -100,6 +100,26 @@ impl TournamentState {
                 match_losses: 0,
                 championships: 0,
             },
+            TournamentTeam {
+                name: "Vortex Hydra".to_string(),
+                color_name: "orange".to_string(),
+                primary_hex: "#ff7700".to_string(),
+                strategy_archetype: "SPLIT".to_string(),
+                description: "Vortex manipulators. Employs fluid offensive movements and field disruption.".to_string(),
+                match_wins: 0,
+                match_losses: 0,
+                championships: 0,
+            },
+            TournamentTeam {
+                name: "Quantum Phase".to_string(),
+                color_name: "white".to_string(),
+                primary_hex: "#ffffff".to_string(),
+                strategy_archetype: "RUSH".to_string(),
+                description: "Phase-shifting speedsters. Uses teleportation-like maneuvers to bypass defenders.".to_string(),
+                match_wins: 0,
+                match_losses: 0,
+                championships: 0,
+            },
         ];
 
         use rand::seq::SliceRandom;
@@ -107,19 +127,21 @@ impl TournamentState {
         let mut rng = rand::thread_rng();
         indices.shuffle(&mut rng);
 
-        let pool_a_blue = indices[0];
-        let pool_a_orange = indices[1];
-        let pool_b_blue = indices[2];
-        let pool_b_orange = indices[3];
-        let pool_c_blue = indices[4];
-        let pool_c_orange = indices[5];
+        let qf_0_blue = indices[0];
+        let qf_0_orange = indices[1];
+        let qf_1_blue = indices[2];
+        let qf_1_orange = indices[3];
+        let qf_2_blue = indices[4];
+        let qf_2_orange = indices[5];
+        let qf_3_blue = indices[6];
+        let qf_3_orange = indices[7];
 
         let matches = vec![
             TournamentMatch {
                 id: 0,
-                name: "Pool A".to_string(),
-                blue_team_index: pool_a_blue,
-                orange_team_index: pool_a_orange,
+                name: "Quarter-Final 1".to_string(),
+                blue_team_index: qf_0_blue,
+                orange_team_index: qf_0_orange,
                 winner_team_index: None,
                 blue_score: None,
                 orange_score: None,
@@ -127,9 +149,9 @@ impl TournamentState {
             },
             TournamentMatch {
                 id: 1,
-                name: "Pool B".to_string(),
-                blue_team_index: pool_b_blue,
-                orange_team_index: pool_b_orange,
+                name: "Quarter-Final 2".to_string(),
+                blue_team_index: qf_1_blue,
+                orange_team_index: qf_1_orange,
                 winner_team_index: None,
                 blue_score: None,
                 orange_score: None,
@@ -137,9 +159,9 @@ impl TournamentState {
             },
             TournamentMatch {
                 id: 2,
-                name: "Pool C".to_string(),
-                blue_team_index: pool_c_blue,
-                orange_team_index: pool_c_orange,
+                name: "Quarter-Final 3".to_string(),
+                blue_team_index: qf_2_blue,
+                orange_team_index: qf_2_orange,
                 winner_team_index: None,
                 blue_score: None,
                 orange_score: None,
@@ -147,9 +169,9 @@ impl TournamentState {
             },
             TournamentMatch {
                 id: 3,
-                name: "Semi-Finals".to_string(),
-                blue_team_index: 0,   // Placeholder
-                orange_team_index: 0, // Placeholder
+                name: "Quarter-Final 4".to_string(),
+                blue_team_index: qf_3_blue,
+                orange_team_index: qf_3_orange,
                 winner_team_index: None,
                 blue_score: None,
                 orange_score: None,
@@ -157,9 +179,29 @@ impl TournamentState {
             },
             TournamentMatch {
                 id: 4,
+                name: "Semi-Final 1".to_string(),
+                blue_team_index: 0,
+                orange_team_index: 0,
+                winner_team_index: None,
+                blue_score: None,
+                orange_score: None,
+                is_completed: false,
+            },
+            TournamentMatch {
+                id: 5,
+                name: "Semi-Final 2".to_string(),
+                blue_team_index: 0,
+                orange_team_index: 0,
+                winner_team_index: None,
+                blue_score: None,
+                orange_score: None,
+                is_completed: false,
+            },
+            TournamentMatch {
+                id: 6,
                 name: "Finals".to_string(),
-                blue_team_index: 0,   // Placeholder
-                orange_team_index: 0, // Placeholder
+                blue_team_index: 0,
+                orange_team_index: 0,
                 winner_team_index: None,
                 blue_score: None,
                 orange_score: None,
@@ -185,19 +227,21 @@ impl TournamentState {
         let mut rng = rand::thread_rng();
         indices.shuffle(&mut rng);
 
-        let pool_a_blue = indices[0];
-        let pool_a_orange = indices[1];
-        let pool_b_blue = indices[2];
-        let pool_b_orange = indices[3];
-        let pool_c_blue = indices[4];
-        let pool_c_orange = indices[5];
+        let qf_0_blue = indices[0];
+        let qf_0_orange = indices[1];
+        let qf_1_blue = indices[2];
+        let qf_1_orange = indices[3];
+        let qf_2_blue = indices[4];
+        let qf_2_orange = indices[5];
+        let qf_3_blue = indices[6];
+        let qf_3_orange = indices[7];
 
         self.matches = vec![
             TournamentMatch {
                 id: 0,
-                name: "Pool A".to_string(),
-                blue_team_index: pool_a_blue,
-                orange_team_index: pool_a_orange,
+                name: "Quarter-Final 1".to_string(),
+                blue_team_index: qf_0_blue,
+                orange_team_index: qf_0_orange,
                 winner_team_index: None,
                 blue_score: None,
                 orange_score: None,
@@ -205,9 +249,9 @@ impl TournamentState {
             },
             TournamentMatch {
                 id: 1,
-                name: "Pool B".to_string(),
-                blue_team_index: pool_b_blue,
-                orange_team_index: pool_b_orange,
+                name: "Quarter-Final 2".to_string(),
+                blue_team_index: qf_1_blue,
+                orange_team_index: qf_1_orange,
                 winner_team_index: None,
                 blue_score: None,
                 orange_score: None,
@@ -215,9 +259,9 @@ impl TournamentState {
             },
             TournamentMatch {
                 id: 2,
-                name: "Pool C".to_string(),
-                blue_team_index: pool_c_blue,
-                orange_team_index: pool_c_orange,
+                name: "Quarter-Final 3".to_string(),
+                blue_team_index: qf_2_blue,
+                orange_team_index: qf_2_orange,
                 winner_team_index: None,
                 blue_score: None,
                 orange_score: None,
@@ -225,7 +269,17 @@ impl TournamentState {
             },
             TournamentMatch {
                 id: 3,
-                name: "Semi-Finals".to_string(),
+                name: "Quarter-Final 4".to_string(),
+                blue_team_index: qf_3_blue,
+                orange_team_index: qf_3_orange,
+                winner_team_index: None,
+                blue_score: None,
+                orange_score: None,
+                is_completed: false,
+            },
+            TournamentMatch {
+                id: 4,
+                name: "Semi-Final 1".to_string(),
                 blue_team_index: 0,
                 orange_team_index: 0,
                 winner_team_index: None,
@@ -234,7 +288,17 @@ impl TournamentState {
                 is_completed: false,
             },
             TournamentMatch {
-                id: 4,
+                id: 5,
+                name: "Semi-Final 2".to_string(),
+                blue_team_index: 0,
+                orange_team_index: 0,
+                winner_team_index: None,
+                blue_score: None,
+                orange_score: None,
+                is_completed: false,
+            },
+            TournamentMatch {
+                id: 6,
                 name: "Finals".to_string(),
                 blue_team_index: 0,
                 orange_team_index: 0,
@@ -283,17 +347,23 @@ impl TournamentState {
 
         if idx == 0 || idx == 1 {
             if idx == 0 {
-                self.matches[3].blue_team_index = winner_idx;
+                self.matches[4].blue_team_index = winner_idx;
             } else {
-                self.matches[3].orange_team_index = winner_idx;
+                self.matches[4].orange_team_index = winner_idx;
             }
         } else if idx == 2 || idx == 3 {
-            if idx == 3 {
-                self.matches[4].blue_team_index = winner_idx; // Winner of Semi-Finals
+            if idx == 2 {
+                self.matches[5].blue_team_index = winner_idx;
             } else {
-                self.matches[4].orange_team_index = winner_idx; // Winner of Pool C (bye)
+                self.matches[5].orange_team_index = winner_idx;
             }
-        } else if idx == 4 {
+        } else if idx == 4 || idx == 5 {
+            if idx == 4 {
+                self.matches[6].blue_team_index = winner_idx;
+            } else {
+                self.matches[6].orange_team_index = winner_idx;
+            }
+        } else if idx == 6 {
             // Finals completed! Crown champion and add championship count
             self.champion_index = Some(winner_idx);
             self.teams[winner_idx].championships += 1;

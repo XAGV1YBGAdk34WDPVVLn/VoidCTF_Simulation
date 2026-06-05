@@ -431,6 +431,25 @@ function updateCamera(dt) {
     }
 }
 
+function distToSegment(p, p1, p2) {
+    const dx = p2[0] - p1[0];
+    const dy = p2[1] - p1[1];
+    const dz = p2[2] - p1[2];
+    const lenSq = dx * dx + dy * dy + dz * dz;
+    if (lenSq < 0.001) {
+        return Math.hypot(p[0] - p1[0], p[1] - p1[1], p[2] - p1[2]);
+    }
+    
+    let t = ((p[0] - p1[0]) * dx + (p[1] - p1[1]) * dy + (p[2] - p1[2]) * dz) / lenSq;
+    t = Math.max(0.0, Math.min(1.0, t));
+    
+    const projX = p1[0] + t * dx;
+    const projY = p1[1] + t * dy;
+    const projZ = p1[2] + t * dz;
+    
+    return Math.hypot(p[0] - projX, p[1] - projY, p[2] - projZ);
+}
+
 function updateBuzzsawTethers(gameState) {
     // Reset link flags for all cached players first
     Object.values(meshCache.players).forEach(pObj => {
@@ -458,6 +477,25 @@ function updateBuzzsawTethers(gameState) {
                         const id = `${pA.id}_${pB.id}`;
                         activeBeamIds.add(id);
                         updateLinkBeam(id, pAObj.group.position, pBObj.group.position, TEAM_COLORS[pA.team]);
+
+                        // Check if any enemy player intersects this team's buzzsaw tether
+                        const enemyTeam = pA.team === "blue" ? "orange" : "blue";
+                        const enemies = alivePlayers.filter(p => p.team === enemyTeam);
+                        enemies.forEach(enemy => {
+                            const enemyDist = distToSegment(enemy.pos, pA.pos, pB.pos);
+                            if (enemyDist <= 3.5) {
+                                const enemyObj = meshCache.players[enemy.id];
+                                if (enemyObj) {
+                                    const sparkPos = enemyObj.group.position.clone();
+                                    sparkPos.y += 1.0; // center of player height
+                                    const sparkColors = [0xffaa00, 0xffdd00, 0xffffff];
+                                    const c = sparkColors[Math.floor(Math.random() * sparkColors.length)];
+                                    if (typeof spawnSparks === "function") {
+                                        spawnSparks(sparkPos, c, 6);
+                                    }
+                                }
+                            }
+                        });
                     }
                 }
             }

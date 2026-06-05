@@ -11,7 +11,7 @@ impl GameEngine {
 
         if self.state == "CHAMPION_CELEBRATION" {
             if let Some(champ_idx) = self.tournament.champion_index {
-                let finals = &self.tournament.matches[2];
+                let finals = &self.tournament.matches[6];
                 let is_blue = finals.blue_team_index == champ_idx;
                 
                 let champ_player_ids = if is_blue { vec![0, 1, 2] } else { vec![3, 4, 5] };

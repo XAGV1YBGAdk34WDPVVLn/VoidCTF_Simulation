@@ -389,7 +389,7 @@ impl Player {
             if !is_in_center_crossing {
                 for ramp in &map_layout.ramps {
                     let r_max_z = ramp.z1.max(ramp.z2);
-                    if r_max_z > 11.0 && is_on_ramp(self.pos, ramp) {
+                    if r_max_z > 9.5 && is_on_ramp(self.pos, ramp) {
                         is_in_center_crossing = true;
                         break;
                     }

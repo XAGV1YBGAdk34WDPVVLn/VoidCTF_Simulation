@@ -333,7 +333,7 @@ function typewriteText(element, text) {
 }
 
 function updateTournamentBracket(tournament, state) {
-    if (!tournament || !tournament.matches || tournament.matches.length < 5 || !tournament.teams) return;
+    if (!tournament || !tournament.matches || tournament.matches.length < 7 || !tournament.teams) return;
     
     // Auto expand/collapse based on game state
     const panel = document.getElementById("tournament-bracket-panel");
@@ -348,7 +348,6 @@ function updateTournamentBracket(tournament, state) {
             }
         }
     }
-
 
     
     // Summary toggle header text
@@ -373,9 +372,9 @@ function updateTournamentBracket(tournament, state) {
     if (content) {
         let gridHtml = `<div class="bracket-grid">`;
         
-        // Column 1: Pools A, B, and C
-        gridHtml += `<div class="bracket-column">`;
-        [0, 1, 2].forEach(idx => {
+        // Column 1: Quarter-Finals (QF1, QF2, QF3, QF4)
+        gridHtml += `<div class="bracket-column" style="gap: 5px;">`;
+        [0, 1, 2, 3].forEach(idx => {
             const m = tournament.matches[idx];
             const tBlue = tournament.teams[m.blue_team_index];
             const tOrange = tournament.teams[m.orange_team_index];
@@ -407,75 +406,83 @@ function updateTournamentBracket(tournament, state) {
         });
         gridHtml += `</div>`;
         
-        // Column 2: Semi-Finals
-        gridHtml += `<div class="bracket-column">`;
-        const mSemi = tournament.matches[3];
-        const tBlueSemi = tournament.teams[mSemi.blue_team_index];
-        const tOrangeSemi = tournament.teams[mSemi.orange_team_index];
-        const isActiveSemi = tournament.current_match_index === 3 && tournament.champion_index === null;
-        const isCompletedSemi = mSemi.is_completed;
-        
-        const isBlueSemiDecided = tournament.matches[0].is_completed && tournament.matches[1].is_completed;
-        const isOrangeSemiDecided = tournament.matches[0].is_completed && tournament.matches[1].is_completed;
-        
-        let blueSemiWinnerClass = isCompletedSemi && mSemi.winner_team_index === mSemi.blue_team_index ? "winner-text" : "";
-        let orangeSemiWinnerClass = isCompletedSemi && mSemi.winner_team_index === mSemi.orange_team_index ? "winner-text" : "";
-        let blueSemiScoreClass = isCompletedSemi && mSemi.winner_team_index === mSemi.blue_team_index ? "winner-score" : "";
-        let orangeSemiScoreClass = isCompletedSemi && mSemi.winner_team_index === mSemi.orange_team_index ? "winner-score" : "";
-        
-        gridHtml += `
-            <div class="bracket-match ${isActiveSemi ? 'active' : ''} ${isCompletedSemi ? 'completed' : ''}">
-                <div class="bracket-match-title">Semi-Finals</div>
-                <div class="bracket-team-row">
-                    <span class="bracket-team-name ${blueSemiWinnerClass}" style="color: ${isBlueSemiDecided ? tBlueSemi.primary_hex : '#718096'}">
-                        ${isBlueSemiDecided ? tBlueSemi.name : 'TBD (Winner Pool A)'}
-                        ${isBlueSemiDecided ? `<span style="font-size: 0.55rem; color: #a0aec0; font-weight: normal; margin-left: 4px;">(${tBlueSemi.match_wins}W-${tBlueSemi.match_losses}L${tBlueSemi.championships > 0 ? ' ' + tBlueSemi.championships + '🏆' : ''})</span>` : ''}
-                    </span>
-                    <span class="bracket-team-score ${blueSemiScoreClass}">${isBlueSemiDecided && mSemi.blue_score !== null ? mSemi.blue_score : '-'}</span>
+        // Column 2: Semi-Finals (SF1, SF2)
+        gridHtml += `<div class="bracket-column" style="gap: 30px;">`;
+        [4, 5].forEach(idx => {
+            const m = tournament.matches[idx];
+            const tBlue = tournament.teams[m.blue_team_index];
+            const tOrange = tournament.teams[m.orange_team_index];
+            const isActive = tournament.current_match_index === idx && tournament.champion_index === null;
+            const isCompleted = m.is_completed;
+            
+            const isBlueDecided = (idx === 4) ? tournament.matches[0].is_completed : tournament.matches[2].is_completed;
+            const isOrangeDecided = (idx === 4) ? tournament.matches[1].is_completed : tournament.matches[3].is_completed;
+            
+            const blueLabel = isBlueDecided ? tBlue.name : (idx === 4 ? "TBD (Winner QF1)" : "TBD (Winner QF3)");
+            const orangeLabel = isOrangeDecided ? tOrange.name : (idx === 4 ? "TBD (Winner QF2)" : "TBD (Winner QF4)");
+            
+            let blueWinnerClass = isCompleted && m.winner_team_index === m.blue_team_index ? "winner-text" : "";
+            let orangeWinnerClass = isCompleted && m.winner_team_index === m.orange_team_index ? "winner-text" : "";
+            let blueScoreClass = isCompleted && m.winner_team_index === m.blue_team_index ? "winner-score" : "";
+            let orangeScoreClass = isCompleted && m.winner_team_index === m.orange_team_index ? "winner-score" : "";
+            
+            gridHtml += `
+                <div class="bracket-match ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}">
+                    <div class="bracket-match-title">${m.name}</div>
+                    <div class="bracket-team-row">
+                        <span class="bracket-team-name ${blueWinnerClass}" style="color: ${isBlueDecided ? tBlue.primary_hex : '#718096'}">
+                            ${blueLabel}
+                            ${isBlueDecided ? `<span style="font-size: 0.55rem; color: #a0aec0; font-weight: normal; margin-left: 4px;">(${tBlue.match_wins}W-${tBlue.match_losses}L${tBlue.championships > 0 ? ' ' + tBlue.championships + '🏆' : ''})</span>` : ''}
+                        </span>
+                        <span class="bracket-team-score ${blueScoreClass}">${isBlueDecided && m.blue_score !== null ? m.blue_score : '-'}</span>
+                    </div>
+                    <div class="bracket-team-row">
+                        <span class="bracket-team-name ${orangeWinnerClass}" style="color: ${isOrangeDecided ? tOrange.primary_hex : '#718096'}">
+                            ${orangeLabel}
+                            ${isOrangeDecided ? `<span style="font-size: 0.55rem; color: #a0aec0; font-weight: normal; margin-left: 4px;">(${tOrange.match_wins}W-${tOrange.match_losses}L${tOrange.championships > 0 ? ' ' + tOrange.championships + '🏆' : ''})</span>` : ''}
+                        </span>
+                        <span class="bracket-team-score ${orangeScoreClass}">${isOrangeDecided && m.orange_score !== null ? m.orange_score : '-'}</span>
+                    </div>
                 </div>
-                <div class="bracket-team-row">
-                    <span class="bracket-team-name ${orangeSemiWinnerClass}" style="color: ${isOrangeSemiDecided ? tOrangeSemi.primary_hex : '#718096'}">
-                        ${isOrangeSemiDecided ? tOrangeSemi.name : 'TBD (Winner Pool B)'}
-                        ${isOrangeSemiDecided ? `<span style="font-size: 0.55rem; color: #a0aec0; font-weight: normal; margin-left: 4px;">(${tOrangeSemi.match_wins}W-${tOrangeSemi.match_losses}L${tOrangeSemi.championships > 0 ? ' ' + tOrangeSemi.championships + '🏆' : ''})</span>` : ''}
-                    </span>
-                    <span class="bracket-team-score ${orangeSemiScoreClass}">${isOrangeSemiDecided && mSemi.orange_score !== null ? mSemi.orange_score : '-'}</span>
-                </div>
-            </div>
-        `;
+            `;
+        });
         gridHtml += `</div>`;
         
         // Column 3: Finals
         gridHtml += `<div class="bracket-column">`;
-        const mFinal = tournament.matches[4];
+        const mFinal = tournament.matches[6];
         const tBlueFinal = tournament.teams[mFinal.blue_team_index];
         const tOrangeFinal = tournament.teams[mFinal.orange_team_index];
-        const isActiveFinal = tournament.current_match_index === 4 && tournament.champion_index === null;
+        const isActiveFinal = tournament.current_match_index === 6 && tournament.champion_index === null;
         const isCompletedFinal = mFinal.is_completed;
         
-        const isBlueFinalistDecided = tournament.matches[3].is_completed; // Semi-Finals finished
-        const isOrangeFinalistDecided = tournament.matches[2].is_completed; // Pool C finished
+        const isBlueFinalistDecided = tournament.matches[4].is_completed;
+        const isOrangeFinalistDecided = tournament.matches[5].is_completed;
         
-        let blueWinnerClass = isCompletedFinal && mFinal.winner_team_index === mFinal.blue_team_index ? "winner-text" : "";
-        let orangeWinnerClass = isCompletedFinal && mFinal.winner_team_index === mFinal.orange_team_index ? "winner-text" : "";
-        let blueScoreClass = isCompletedFinal && mFinal.winner_team_index === mFinal.blue_team_index ? "winner-score" : "";
-        let orangeScoreClass = isCompletedFinal && mFinal.winner_team_index === mFinal.orange_team_index ? "winner-score" : "";
+        const blueFinalLabel = isBlueFinalistDecided ? tBlueFinal.name : "TBD (Winner SF1)";
+        const orangeFinalLabel = isOrangeFinalistDecided ? tOrangeFinal.name : "TBD (Winner SF2)";
+        
+        let blueFinalWinnerClass = isCompletedFinal && mFinal.winner_team_index === mFinal.blue_team_index ? "winner-text" : "";
+        let orangeFinalWinnerClass = isCompletedFinal && mFinal.winner_team_index === mFinal.orange_team_index ? "winner-text" : "";
+        let blueFinalScoreClass = isCompletedFinal && mFinal.winner_team_index === mFinal.blue_team_index ? "winner-score" : "";
+        let orangeFinalScoreClass = isCompletedFinal && mFinal.winner_team_index === mFinal.orange_team_index ? "winner-score" : "";
         
         gridHtml += `
             <div class="bracket-match ${isActiveFinal ? 'active' : ''} ${isCompletedFinal ? 'completed' : ''}">
                 <div class="bracket-match-title">Finals</div>
                 <div class="bracket-team-row">
-                    <span class="bracket-team-name ${blueWinnerClass}" style="color: ${isBlueFinalistDecided ? tBlueFinal.primary_hex : '#718096'}">
-                        ${isBlueFinalistDecided ? tBlueFinal.name : 'TBD (Winner Semi)'}
+                    <span class="bracket-team-name ${blueFinalWinnerClass}" style="color: ${isBlueFinalistDecided ? tBlueFinal.primary_hex : '#718096'}">
+                        ${blueFinalLabel}
                         ${isBlueFinalistDecided ? `<span style="font-size: 0.55rem; color: #a0aec0; font-weight: normal; margin-left: 4px;">(${tBlueFinal.match_wins}W-${tBlueFinal.match_losses}L${tBlueFinal.championships > 0 ? ' ' + tBlueFinal.championships + '🏆' : ''})</span>` : ''}
                     </span>
-                    <span class="bracket-team-score ${blueScoreClass}">${isBlueFinalistDecided && mFinal.blue_score !== null ? mFinal.blue_score : '-'}</span>
+                    <span class="bracket-team-score ${blueFinalScoreClass}">${isBlueFinalistDecided && mFinal.blue_score !== null ? mFinal.blue_score : '-'}</span>
                 </div>
                 <div class="bracket-team-row">
-                    <span class="bracket-team-name ${orangeWinnerClass}" style="color: ${isOrangeFinalistDecided ? tOrangeFinal.primary_hex : '#718096'}">
-                        ${isOrangeFinalistDecided ? tOrangeFinal.name : 'TBD (Winner Pool C)'}
+                    <span class="bracket-team-name ${orangeFinalWinnerClass}" style="color: ${isOrangeFinalistDecided ? tOrangeFinal.primary_hex : '#718096'}">
+                        ${orangeFinalLabel}
                         ${isOrangeFinalistDecided ? `<span style="font-size: 0.55rem; color: #a0aec0; font-weight: normal; margin-left: 4px;">(${tOrangeFinal.match_wins}W-${tOrangeFinal.match_losses}L${tOrangeFinal.championships > 0 ? ' ' + tOrangeFinal.championships + '🏆' : ''})</span>` : ''}
                     </span>
-                    <span class="bracket-team-score ${orangeScoreClass}">${isOrangeFinalistDecided && mFinal.orange_score !== null ? mFinal.orange_score : '-'}</span>
+                    <span class="bracket-team-score ${orangeFinalScoreClass}">${isOrangeFinalistDecided && mFinal.orange_score !== null ? mFinal.orange_score : '-'}</span>
                 </div>
             </div>
         `;

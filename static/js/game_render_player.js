@@ -452,6 +452,45 @@ function spawnDeRezExplosion(pos, color, count = 25) {
     });
 }
 
+function spawnSparks(pos, color, count = 8) {
+    const geom = new THREE.BufferGeometry();
+    const positions = [];
+    const velocities = [];
+    
+    for (let i = 0; i < count; i++) {
+        positions.push(pos.x, pos.y, pos.z);
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos((Math.random() * 2) - 1);
+        const speed = 8.0 + Math.random() * 12.0;
+        
+        velocities.push(
+            Math.sin(phi) * Math.cos(theta) * speed,
+            Math.sin(phi) * Math.sin(theta) * speed,
+            Math.cos(phi) * speed
+        );
+    }
+    
+    geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    
+    const mat = new THREE.PointsMaterial({
+        color: color,
+        size: 0.35,
+        transparent: true,
+        opacity: 1.0,
+        blending: THREE.AdditiveBlending
+    });
+    
+    const pSystem = new THREE.Points(geom, mat);
+    scene.add(pSystem);
+    
+    particleGroups.push({
+        points: pSystem,
+        velocities: velocities,
+        age: 0.0,
+        maxAge: 0.35
+    });
+}
+
 function updateParticles(dt) {
     for (let i = particleGroups.length - 1; i >= 0; i--) {
         const p = particleGroups[i];

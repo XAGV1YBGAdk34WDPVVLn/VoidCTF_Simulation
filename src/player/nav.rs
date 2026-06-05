@@ -127,8 +127,15 @@ pub fn get_navigation_target(
     let mut all_obstacles = buildings.to_vec();
     if let Some(plats) = platforms {
         for p in plats {
-            // If the platform is higher than the player by more than 2.5 units, treat it as an obstacle
-            if p.z > p_pos[2] + 2.5 {
+            // Check if the target is on this platform
+            let target_on_plat = target_pos[0] >= p.x
+                && target_pos[0] <= p.x + p.w
+                && target_pos[1] >= p.y
+                && target_pos[1] <= p.y + p.d;
+
+            // If the platform is higher than the player by more than 2.5 units,
+            // and the target is NOT on this platform, treat it as an obstacle
+            if p.z > p_pos[2] + 2.5 && !target_on_plat {
                 all_obstacles.push(Building {
                     id: format!("plat_obs_{}", p.id),
                     x: p.x,
@@ -145,8 +152,14 @@ pub fn get_navigation_target(
     if let Some(rmps) = ramps {
         for r in rmps {
             let r_max_z = r.z1.max(r.z2);
-            // If the ramp is higher than the player by more than 2.5 units, treat its sides as obstacles
-            if r_max_z > p_pos[2] + 2.5 {
+            let target_on_ramp = target_pos[0] >= r.x1
+                && target_pos[0] <= r.x2
+                && target_pos[1] >= r.y1
+                && target_pos[1] <= r.y2;
+
+            // If the ramp is higher than the player by more than 2.5 units,
+            // and the target is NOT on this ramp, treat its sides as obstacles
+            if r_max_z > p_pos[2] + 2.5 && !target_on_ramp {
                 // Bottom wall along Y = r.y1
                 all_obstacles.push(Building {
                     id: format!("ramp_side_bot_{}", r.id),

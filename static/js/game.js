@@ -300,6 +300,7 @@ function setupEventListeners() {
 
     const rebootBtn = document.getElementById("btn-reboot");
     const auditRebootBtn = document.getElementById("btn-audit-reboot");
+    const pauseBtn = document.getElementById("btn-pause");
     
     const sendReboot = () => {
         if (ws && ws.readyState === WebSocket.OPEN) {
@@ -311,6 +312,13 @@ function setupEventListeners() {
     }
     if (auditRebootBtn) {
         auditRebootBtn.addEventListener("click", sendReboot);
+    }
+    if (pauseBtn) {
+        pauseBtn.addEventListener("click", () => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: "toggle_pause" }));
+            }
+        });
     }
 
     document.querySelectorAll(".btn-override").forEach(btn => {

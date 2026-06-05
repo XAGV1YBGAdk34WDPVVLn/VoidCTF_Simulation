@@ -4,6 +4,9 @@ use crate::config::WINNING_CAPTURES;
 
 impl GameEngine {
     pub fn update(&mut self, dt: f32, time_now: f32) {
+        if self.is_paused {
+            return;
+        }
         self.sim_time += dt;
 
         if self.state == "CHAMPION_CELEBRATION" {

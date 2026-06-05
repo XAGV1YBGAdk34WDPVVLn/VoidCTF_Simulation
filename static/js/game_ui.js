@@ -128,6 +128,26 @@ function updateDOMState(gameState) {
             }
         }
     }
+
+    // Update Pause Button state
+    const pauseBtn = document.getElementById("btn-pause");
+    if (pauseBtn) {
+        if (gameState.is_paused) {
+            pauseBtn.innerText = "RESUME SIMULATION";
+            if (!pauseBtn.classList.contains("active-paused")) {
+                pauseBtn.classList.add("active-paused");
+            }
+            const statusEl = document.getElementById("status-label");
+            if (statusEl && statusEl.innerText !== "GRID SIMULATION PAUSED") {
+                statusEl.innerText = "GRID SIMULATION PAUSED";
+            }
+        } else {
+            pauseBtn.innerText = "PAUSE SIMULATION";
+            if (pauseBtn.classList.contains("active-paused")) {
+                pauseBtn.classList.remove("active-paused");
+            }
+        }
+    }
 }
 
 function updateHUD(gameState) {

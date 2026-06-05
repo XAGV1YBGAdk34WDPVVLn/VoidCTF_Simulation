@@ -159,6 +159,18 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                     }
 
                     broadcast_state(&state_clone).await;
+                } else if msg_type == "toggle_pause" {
+                    info!("Pause toggle command received from client.");
+                    {
+                        let mut engine_lock = state_clone.engine.lock().await;
+                        engine_lock.is_paused = !engine_lock.is_paused;
+                        let pause_status = engine_lock.is_paused;
+                        engine_lock.log_event(&format!(
+                            "Simulation {}", 
+                            if pause_status { "PAUSED" } else { "RESUMED" }
+                        ));
+                    }
+                    broadcast_state(&state_clone).await;
                 } else if msg_type == "apply_override_strategy" {
                     let team = data.get("team").and_then(|v| v.as_str()).unwrap_or("");
                     let strat = data.get("strategy").and_then(|v| v.as_str()).unwrap_or("");
@@ -303,32 +315,34 @@ async fn run_sim_loop(state: Arc<AppState>) {
         let mut auto_reboot = false;
         {
             let mut engine_lock = state.engine.lock().await;
-            if engine_lock.state == "AUDITING" {
-                if engine_lock.timer > 0.0 {
-                    engine_lock.timer -= dt;
-                    if engine_lock.timer <= 0.0 {
-                        let blue_score = engine_lock.scores["blue"];
-                        let orange_score = engine_lock.scores["orange"];
-                        
-                        engine_lock.tournament.complete_current_match(blue_score, orange_score);
-                        
-                        if engine_lock.tournament.champion_index.is_some() {
-                            engine_lock.state = "CHAMPION_CELEBRATION".to_string();
-                            engine_lock.timer = 15.0; // 15 seconds celebration pose
-                        } else {
-                            engine_lock.tournament.current_match_index += 1;
+            if !engine_lock.is_paused {
+                if engine_lock.state == "AUDITING" {
+                    if engine_lock.timer > 0.0 {
+                        engine_lock.timer -= dt;
+                        if engine_lock.timer <= 0.0 {
+                            let blue_score = engine_lock.scores["blue"];
+                            let orange_score = engine_lock.scores["orange"];
+                            
+                            engine_lock.tournament.complete_current_match(blue_score, orange_score);
+                            
+                            if engine_lock.tournament.champion_index.is_some() {
+                                engine_lock.state = "CHAMPION_CELEBRATION".to_string();
+                                engine_lock.timer = 15.0; // 15 seconds celebration pose
+                            } else {
+                                engine_lock.tournament.current_match_index += 1;
+                                engine_lock.reset_match();
+                                auto_reboot = true;
+                            }
+                        }
+                    }
+                } else if engine_lock.state == "CHAMPION_CELEBRATION" {
+                    if engine_lock.timer > 0.0 {
+                        engine_lock.timer -= dt;
+                        if engine_lock.timer <= 0.0 {
+                            engine_lock.tournament.reset_tournament();
                             engine_lock.reset_match();
                             auto_reboot = true;
                         }
-                    }
-                }
-            } else if engine_lock.state == "CHAMPION_CELEBRATION" {
-                if engine_lock.timer > 0.0 {
-                    engine_lock.timer -= dt;
-                    if engine_lock.timer <= 0.0 {
-                        engine_lock.tournament.reset_tournament();
-                        engine_lock.reset_match();
-                        auto_reboot = true;
                     }
                 }
             }

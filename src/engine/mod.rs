@@ -40,6 +40,7 @@ pub struct GameEngine {
     pub overcharge_node: serde_json::Value,
     pub tournament: crate::tournament::TournamentState,
     pub last_tactic_change_time: HashMap<String, f32>,
+    pub is_paused: bool,
     
     #[serde(skip_serializing)]
     pub strategy_templates: serde_json::Value,
@@ -174,6 +175,7 @@ impl GameEngine {
             overcharge_node,
             tournament: crate::tournament::TournamentState::new(),
             last_tactic_change_time,
+            is_paused: false,
             strategy_templates,
             summary_stats: serde_json::json!({}),
         };
@@ -347,6 +349,7 @@ impl GameEngine {
         self.sim_time = 0.0;
         self.last_action_time = 0.0;
         self.both_carried_timer = 0.0;
+        self.is_paused = false;
         self.last_tactic_change_time.insert("blue".to_string(), 0.0);
         self.last_tactic_change_time.insert("orange".to_string(), 0.0);
 

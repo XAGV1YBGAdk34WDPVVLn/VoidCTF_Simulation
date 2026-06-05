@@ -29,20 +29,77 @@ impl Player {
 
         let mut enemy_avoidance = [0.0, 0.0, 0.0];
         if self.has_flag || self.state == "RETREAT" {
+            let travel_len = (dir_vec[0] * dir_vec[0] + dir_vec[1] * dir_vec[1]).sqrt();
+            let travel_dir = if travel_len > 0.0001 {
+                [dir_vec[0] / travel_len, dir_vec[1] / travel_len]
+            } else {
+                [0.0, 0.0]
+            };
+
+            let detection_range = if self.has_flag { 32.0 } else { 28.0 };
+            let base_avoid_speed = current_speed.max(8.0);
+
             for e in enemies {
                 let to_enemy = math::sub(self.pos, e.pos);
                 let e_dist = math::length(to_enemy);
-                if e_dist < 28.0 {
-                    let mut dir_away = [to_enemy[0], to_enemy[1], 0.0];
-                    let dir_len = math::length(dir_away);
-                    if dir_len > 0.001 {
-                        dir_away = math::scale(dir_away, 1.0 / dir_len);
-                        let force_scale = (12.0 / (e_dist + 0.1)).min(15.0);
-                        enemy_avoidance = math::add(enemy_avoidance, math::scale(dir_away, force_scale));
+                if e_dist < detection_range && e_dist > 0.01 {
+                    let vec_to_enemy = [e.pos[0] - self.pos[0], e.pos[1] - self.pos[1]];
+                    let dist_2d = (vec_to_enemy[0] * vec_to_enemy[0] + vec_to_enemy[1] * vec_to_enemy[1]).sqrt();
+                    if dist_2d > 0.01 {
+                        let enemy_dir_normalized = [vec_to_enemy[0] / dist_2d, vec_to_enemy[1] / dist_2d];
+                        let dot = travel_dir[0] * enemy_dir_normalized[0] + travel_dir[1] * enemy_dir_normalized[1];
+                        
+                        let radial_dir = [to_enemy[0] / e_dist, to_enemy[1] / e_dist];
+                        
+                        let perp1 = [-enemy_dir_normalized[1], enemy_dir_normalized[0]];
+                        let perp2 = [enemy_dir_normalized[1], -enemy_dir_normalized[0]];
+                        
+                        let dot1 = perp1[0] * travel_dir[0] + perp1[1] * travel_dir[1];
+                        let dot2 = perp2[0] * travel_dir[0] + perp2[1] * travel_dir[1];
+                        
+                        let lateral_dir = if dot1.abs() > 0.001 || dot2.abs() > 0.001 {
+                            if dot1 > dot2 {
+                                perp1
+                            } else {
+                                perp2
+                            }
+                        } else {
+                            if self.id % 2 == 0 {
+                                perp1
+                            } else {
+                                perp2
+                            }
+                        };
+                        
+                        let force_dir = if dot > 0.0 {
+                            let radial_weight = 1.0 - dot;
+                            let lateral_weight = dot;
+                            [
+                                radial_dir[0] * radial_weight + lateral_dir[0] * lateral_weight,
+                                radial_dir[1] * radial_weight + lateral_dir[1] * lateral_weight,
+                                0.0
+                            ]
+                        } else {
+                            [radial_dir[0], radial_dir[1], 0.0]
+                        };
+                        
+                        let force_dir_len = (force_dir[0] * force_dir[0] + force_dir[1] * force_dir[1]).sqrt();
+                        let force_dir_norm = if force_dir_len > 0.001 {
+                            [force_dir[0] / force_dir_len, force_dir[1] / force_dir_len, 0.0]
+                        } else {
+                            [radial_dir[0], radial_dir[1], 0.0]
+                        };
+                        
+                        let factor = 1.0 - e_dist / detection_range;
+                        let multiplier = if self.has_flag { 1.8 } else { 1.2 };
+                        let force_scale = base_avoid_speed * multiplier * factor;
+                        
+                        enemy_avoidance = math::add(enemy_avoidance, math::scale(force_dir_norm, force_scale));
                     }
                 }
             }
         }
+
 
         let noise_time = (self.id as f32 * 12.34) + (self.pos[0] * 0.1) + (self.pos[1] * 0.1);
         let wander_strength = 1.2;

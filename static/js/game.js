@@ -252,14 +252,31 @@ function setupEventListeners() {
     });
 
     const selectFocus = document.getElementById("focus-select");
-    selectFocus.addEventListener("change", (e) => {
-        trackingTargetId = e.target.value;
-        if (cameraMode !== "action") {
-            cameraMode = "action";
-            btnAction.classList.add("active");
-            btnGhost.classList.remove("active");
-        }
-    });
+    if (selectFocus) {
+        selectFocus.addEventListener("change", (e) => {
+            trackingTargetId = e.target.value;
+            if (cameraMode !== "action") {
+                cameraMode = "action";
+                btnAction.classList.add("active");
+                btnGhost.classList.remove("active");
+            }
+        });
+    }
+
+    const btnSettingsOpen = document.getElementById("btn-settings-open");
+    const btnSettingsClose = document.getElementById("btn-settings-close");
+    const settingsOverlay = document.getElementById("settings-overlay");
+
+    if (btnSettingsOpen && settingsOverlay) {
+        btnSettingsOpen.addEventListener("click", () => {
+            settingsOverlay.classList.remove("hidden");
+        });
+    }
+    if (btnSettingsClose && settingsOverlay) {
+        btnSettingsClose.addEventListener("click", () => {
+            settingsOverlay.classList.add("hidden");
+        });
+    }
 
     const toggleBloom = document.getElementById("toggle-bloom");
     const bloomIntensityContainer = document.getElementById("bloom-intensity-container");
@@ -364,15 +381,7 @@ function setupEventListeners() {
         });
     }
 
-    const initAudioOnInteract = () => {
-        if (window.gridAudio) {
-            window.gridAudio.init();
-        }
-        document.removeEventListener("click", initAudioOnInteract);
-        document.removeEventListener("keydown", initAudioOnInteract);
-    };
-    document.addEventListener("click", initAudioOnInteract);
-    document.addEventListener("keydown", initAudioOnInteract);
+
 
     window.addEventListener("keydown", (e) => {
         if (['KeyW', 'KeyS', 'KeyA', 'KeyD', 'Space', 'ShiftLeft'].includes(e.code)) {

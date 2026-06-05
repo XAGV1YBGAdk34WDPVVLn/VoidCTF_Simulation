@@ -36,6 +36,9 @@ function updateDOMState(gameState) {
                 if (window.gridAudio && countdownVal > 0) {
                     window.gridAudio.playTick(countdownVal === 1);
                 }
+                if (window.gridBit && countdownVal > 0) {
+                    window.gridBit.triggerPulse();
+                }
             }
         }
         if (championOverlay && championOverlay.classList.contains("hidden")) {
@@ -61,6 +64,9 @@ function updateDOMState(gameState) {
             countdownEl.innerText = countdownVal;
             if (window.gridAudio && countdownVal > 0) {
                 window.gridAudio.playTick(countdownVal === 1);
+            }
+            if (window.gridBit && countdownVal > 0) {
+                window.gridBit.triggerPulse();
             }
         }
         
@@ -288,14 +294,19 @@ function updateHUD(gameState) {
             if (window.gridAudio) {
                 if (log.includes("SCORE!")) {
                     window.gridAudio.playScore();
+                    if (window.gridBit) window.gridBit.triggerYes();
                 } else if (log.includes("picked up the MIDFIELD OVERCHARGE!")) {
                     window.gridAudio.playOvercharge();
+                    if (window.gridBit) window.gridBit.triggerYes();
                 } else if (log.includes("secured") && log.includes("Flag")) {
                     window.gridAudio.playFlagPickup();
+                    if (window.gridBit) window.gridBit.triggerYes();
                 } else if (log.includes("returned the") && log.includes("Flag")) {
                     window.gridAudio.playFlagReturn();
+                    if (window.gridBit) window.gridBit.triggerYes();
                 } else if (log.includes("de-rezzed")) {
                     window.gridAudio.playDeRez();
+                    if (window.gridBit) window.gridBit.triggerNo();
                 } else if (log.includes("Match started!")) {
                     window.gridAudio.playMatchStart();
                 }
@@ -309,33 +320,38 @@ function updateHUD(gameState) {
 }
 
 function updateTacticsOverlay(tactics) {
-    // Sidebar update
-    document.getElementById("blue-strategy-title").innerText = tactics.blue.strategy;
-    document.getElementById("blue-strategy-rationale").innerText = tactics.blue.rationale;
-    document.getElementById("blue-strategy-source").innerText = tactics.blue.source;
-    
-    document.getElementById("orange-strategy-title").innerText = tactics.orange.strategy;
-    document.getElementById("orange-strategy-rationale").innerText = tactics.orange.rationale;
-    document.getElementById("orange-strategy-source").innerText = tactics.orange.source;
+    // Roster title strategy badges
+    const blueDisplay = document.getElementById("blue-strategy-display");
+    if (blueDisplay) {
+        blueDisplay.innerText = tactics.blue.strategy;
+    }
+    const orangeDisplay = document.getElementById("orange-strategy-display");
+    if (orangeDisplay) {
+        orangeDisplay.innerText = tactics.orange.strategy;
+    }
 
     // Pregame overlay status indicators
     const blueStatus = document.getElementById("blue-tactics-status");
     const orangeStatus = document.getElementById("orange-tactics-status");
 
-    if (tactics.blue.source !== "Default") {
-        blueStatus.innerText = "COMPILED";
-        blueStatus.className = "status-indicator ready";
-    } else {
-        blueStatus.innerText = "LOADING";
-        blueStatus.className = "status-indicator loading";
+    if (blueStatus) {
+        if (tactics.blue.source !== "Default") {
+            blueStatus.innerText = "COMPILED";
+            blueStatus.className = "status-indicator ready";
+        } else {
+            blueStatus.innerText = "LOADING";
+            blueStatus.className = "status-indicator loading";
+        }
     }
 
-    if (tactics.orange.source !== "Default") {
-        orangeStatus.innerText = "COMPILED";
-        orangeStatus.className = "status-indicator ready";
-    } else {
-        orangeStatus.innerText = "LOADING";
-        orangeStatus.className = "status-indicator loading";
+    if (orangeStatus) {
+        if (tactics.orange.source !== "Default") {
+            orangeStatus.innerText = "COMPILED";
+            orangeStatus.className = "status-indicator ready";
+        } else {
+            orangeStatus.innerText = "LOADING";
+            orangeStatus.className = "status-indicator loading";
+        }
     }
 }
 

@@ -194,27 +194,27 @@ function updateTeamColorsFromTournament(tournament) {
     const orangeScoreNum = document.getElementById("score-orange");
     if (orangeScoreNum) orangeScoreNum.style.color = orangeTeam.primary_hex;
     
-    // Tactics titles and boxes colors
-    const blueStratBox = document.querySelector(".blue-strat");
-    if (blueStratBox) {
-        blueStratBox.style.background = `rgba(${colorBlue.r * 255}, ${colorBlue.g * 255}, ${colorBlue.b * 255}, 0.05)`;
-        blueStratBox.style.borderColor = blueTeam.primary_hex + "33"; // semi-transparent border
-        blueStratBox.style.borderLeftColor = blueTeam.primary_hex;
+    // Update Roster Telemetry Team Names & strategy badge colors
+    const blueRosterTitleSpan = document.querySelector(".roster-team-title.neon-text-blue span");
+    if (blueRosterTitleSpan) {
+        blueRosterTitleSpan.innerText = blueTeam.name.toUpperCase();
     }
-    const orangeStratBox = document.querySelector(".orange-strat");
-    if (orangeStratBox) {
-        orangeStratBox.style.background = `rgba(${colorOrange.r * 255}, ${colorOrange.g * 255}, ${colorOrange.b * 255}, 0.05)`;
-        orangeStratBox.style.borderColor = orangeTeam.primary_hex + "33";
-        orangeStratBox.style.borderLeftColor = orangeTeam.primary_hex;
+    const blueStrategyDisplay = document.getElementById("blue-strategy-display");
+    if (blueStrategyDisplay) {
+        blueStrategyDisplay.style.color = blueTeam.primary_hex;
+        blueStrategyDisplay.style.borderColor = blueTeam.primary_hex + "4d"; // semi-transparent
+        blueStrategyDisplay.style.background = `rgba(${colorBlue.r * 255}, ${colorBlue.g * 255}, ${colorBlue.b * 255}, 0.15)`;
     }
 
-    const blueStratHeader = document.querySelector(".blue-strat h3");
-    if (blueStratHeader) {
-        blueStratHeader.innerHTML = `<span style="color: ${blueTeam.primary_hex}">${blueTeam.name.toUpperCase()}</span> STRATEGY: <span id="blue-strategy-title" class="strategy-badge" style="color: ${blueTeam.primary_hex}">LOADING...</span>`;
+    const orangeRosterTitleSpan = document.querySelector(".roster-team-title.neon-text-orange span");
+    if (orangeRosterTitleSpan) {
+        orangeRosterTitleSpan.innerText = orangeTeam.name.toUpperCase();
     }
-    const orangeStratHeader = document.querySelector(".orange-strat h3");
-    if (orangeStratHeader) {
-        orangeStratHeader.innerHTML = `<span style="color: ${orangeTeam.primary_hex}">${orangeTeam.name.toUpperCase()}</span> STRATEGY: <span id="orange-strategy-title" class="strategy-badge" style="color: ${orangeTeam.primary_hex}">LOADING...</span>`;
+    const orangeStrategyDisplay = document.getElementById("orange-strategy-display");
+    if (orangeStrategyDisplay) {
+        orangeStrategyDisplay.style.color = orangeTeam.primary_hex;
+        orangeStrategyDisplay.style.borderColor = orangeTeam.primary_hex + "4d"; // semi-transparent
+        orangeStrategyDisplay.style.background = `rgba(${colorOrange.r * 255}, ${colorOrange.g * 255}, ${colorOrange.b * 255}, 0.15)`;
     }
     
     // Pregame overlay loading labels

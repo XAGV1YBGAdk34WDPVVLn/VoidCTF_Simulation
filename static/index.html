@@ -64,37 +64,34 @@
 
         <!-- Left Column: Strategy and Vitals -->
         <aside class="hud-element sidebar left-sidebar">
-            <section class="hud-panel vital-panel">
+            <section class="hud-panel vital-panel" style="flex-grow: 1;">
                 <h2>ROSTER TELEMETRY</h2>
                 <div class="player-roster" id="blue-roster">
-                    <div class="roster-team-title neon-text-blue">TEAM BLUE</div>
+                    <div class="roster-team-title neon-text-blue" style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>TEAM BLUE</span>
+                        <span id="blue-strategy-display" style="font-size: 0.65rem; padding: 2px 6px; background: rgba(0, 240, 255, 0.15); border: 1px solid rgba(0, 240, 255, 0.3); border-radius: 3px; font-family: var(--font-mono); font-weight: normal; letter-spacing: 1px;">LOADING</span>
+                    </div>
                     <!-- Dynamically populated -->
                 </div>
-                <div class="player-roster" id="orange-roster">
-                    <div class="roster-team-title neon-text-orange">TEAM ORANGE</div>
+                <div class="player-roster" id="orange-roster" style="margin-top: 15px;">
+                    <div class="roster-team-title neon-text-orange" style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>TEAM ORANGE</span>
+                        <span id="orange-strategy-display" style="font-size: 0.65rem; padding: 2px 6px; background: rgba(255, 123, 0, 0.15); border: 1px solid rgba(255, 123, 0, 0.3); border-radius: 3px; font-family: var(--font-mono); font-weight: normal; letter-spacing: 1px;">LOADING</span>
+                    </div>
                     <!-- Dynamically populated -->
-                </div>
-            </section>
-
-            <section class="hud-panel strategies-panel">
-                <h2>TACTICAL SECTOR</h2>
-                
-                <div class="team-strategy-box blue-strat">
-                    <h3>BLUE TEAM STRATEGY: <span id="blue-strategy-title" class="strategy-badge">LOADING...</span></h3>
-                    <p id="blue-strategy-rationale" class="strategy-desc">Retrieving parameters from Tactical Core...</p>
-                    <div class="strategy-source">Source: <span id="blue-strategy-source">Tactical Advisor</span></div>
-                </div>
-
-                <div class="team-strategy-box orange-strat">
-                    <h3>ORANGE TEAM STRATEGY: <span id="orange-strategy-title" class="strategy-badge">LOADING...</span></h3>
-                    <p id="orange-strategy-rationale" class="strategy-desc">Retrieving parameters from Tactical Core...</p>
-                    <div class="strategy-source">Source: <span id="orange-strategy-source">Tactical Advisor</span></div>
                 </div>
             </section>
         </aside>
 
         <!-- Right Column: Match Log and Systems controls -->
         <aside class="hud-element sidebar right-sidebar">
+            <!-- Grid Assistant (Tron Bit) -->
+            <section id="bit-panel" class="hud-panel" style="text-align: center; position: relative;">
+                <h2>GRID ASSISTANT</h2>
+                <div id="bit-status" style="font-family: var(--font-mono); font-size: 9px; color: #00f0ff; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">READY</div>
+                <canvas id="bit-canvas" width="100" height="100" style="width: 100px; height: 100px; display: block; margin: 0 auto; background: transparent; border: 1px solid rgba(0, 240, 255, 0.2); border-radius: 50%; box-shadow: 0 0 10px rgba(0, 240, 255, 0.15); cursor: pointer;"></canvas>
+            </section>
+
             <section class="hud-panel system-log-panel">
                 <h2>GRID EVENTS</h2>
                 <div id="match-log" class="terminal-scroller">
@@ -109,52 +106,10 @@
                     <button id="btn-cam-ghost" class="btn active">GHOST CAM</button>
                     <button id="btn-cam-action" class="btn">ACTION CAM</button>
                 </div>
-                
-                <div class="camera-info">
-                    <p class="control-tip"><strong>Ghost Cam:</strong> Left-click + drag to rotate. Mousewheel to zoom. WASD to fly.</p>
-                    <p class="control-tip"><strong>Action Cam:</strong> Tracks the active game hotspots smoothly.</p>
-                </div>
-                
-                <div class="form-group">
-                    <label for="focus-select">Track Target:</label>
-                    <select id="focus-select" class="form-select">
-                        <option value="auto">Auto Focus (Action Hotspots)</option>
-                        <option value="blue_stalker">Blue Stalker (A-Tron)</option>
-                        <option value="blue_heavy">Blue Heavy (B-Block)</option>
-                        <option value="blue_support">Blue Support (C-Medic)</option>
-                        <option value="orange_stalker">Orange Stalker (X-Vector)</option>
-                        <option value="orange_heavy">Orange Heavy (Y-Shield)</option>
-                        <option value="orange_support">Orange Support (Z-Solder)</option>
-                    </select>
-                </div>
 
-                <div class="performance-setting">
-                    <label class="switch-container">
-                        <input type="checkbox" id="toggle-bloom" checked>
-                        <span class="switch-slider"></span>
-                        <span class="switch-label">Enable Neon Glow (Bloom)</span>
-                    </label>
-                    <span class="hint-text">Turn off to optimize performance on older laptops.</span>
-                </div>
-
-                <div class="bloom-intensity-group" id="bloom-intensity-container">
-                    <label for="bloom-intensity">Bloom Intensity: <span id="bloom-val">1.3</span></label>
-                    <input type="range" id="bloom-intensity" min="0.0" max="4.0" step="0.1" value="1.3" class="form-slider">
-                </div>
-
-                <div class="audio-control-group" style="margin-top: 15px; margin-bottom: 15px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
-                    <label style="font-family: var(--font-mono); font-size: 0.75rem; color: #a2a8b9; letter-spacing: 1px; display: block; margin-bottom: 5px;">AUDIO MODULE</label>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <button id="btn-audio-mute" class="btn" style="flex: 1; padding: 4px 8px; font-size: 10px; height: 26px;">MUTE</button>
-                        <div style="flex: 2; display: flex; flex-direction: column; gap: 2px;">
-                            <span style="font-size: 9px; color: #a2a8b9; font-family: var(--font-mono);">VOLUME: <span id="audio-volume-display">25%</span></span>
-                            <input id="audio-volume" type="range" min="0" max="100" value="25" style="width: 100%; cursor: pointer;">
-                        </div>
-                    </div>
-                </div>
-
-                <button id="btn-reboot" class="btn danger-btn">REBOOT GRID</button>
-                <button id="btn-pause" class="btn warning-btn">PAUSE SIMULATION</button>
+                <button id="btn-settings-open" class="btn" style="width: 100%; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    ⚙️ SYSTEM SETTINGS
+                </button>
             </section>
         </aside>
     </div>
@@ -268,11 +223,65 @@
         </div>
     </div>
 
+    <!-- Settings Overlay Modal -->
+    <div id="settings-overlay" class="modal-overlay hidden">
+        <div class="modal-content settings-modal">
+            <h1 class="settings-header neon-text-blue">⚙️ SYSTEM CONTROL PANEL</h1>
+            <div class="settings-grid">
+                <!-- Performance/Visual Settings -->
+                <div class="settings-section">
+                    <h3>VISUAL SUBROUTINES</h3>
+                    <div class="performance-setting" style="margin-bottom: 10px;">
+                        <label class="switch-container">
+                            <input type="checkbox" id="toggle-bloom" checked>
+                            <span class="switch-slider"></span>
+                            <span class="switch-label">Enable Neon Glow (Bloom)</span>
+                        </label>
+                        <span class="hint-text" style="display: block; font-size: 0.65rem; color: #718096; margin-top: 4px;">Optimize performance on older GPU hardware.</span>
+                    </div>
+
+                    <div class="bloom-intensity-group" id="bloom-intensity-container">
+                        <label for="bloom-intensity" style="font-family: var(--font-mono); font-size: 10px; color: #a2a8b9;">Bloom Intensity: <span id="bloom-val">1.3</span></label>
+                        <input type="range" id="bloom-intensity" min="0.0" max="4.0" step="0.1" value="1.3" class="form-slider" style="width: 100%; margin-top: 4px;">
+                    </div>
+                </div>
+
+                <!-- Audio Module Controls -->
+                <div class="settings-section">
+                    <h3>AUDIO FEEDBACK MODULE</h3>
+                    <div class="audio-control-group" style="padding: 10px; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px; background: rgba(0, 0, 0, 0.25);">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <button id="btn-audio-mute" class="btn" style="flex: 1; padding: 6px 12px; font-size: 10px; height: 32px;">MUTE</button>
+                            <div style="flex: 2; display: flex; flex-direction: column; gap: 4px; text-align: left;">
+                                <span style="font-size: 10px; color: #a2a8b9; font-family: var(--font-mono); letter-spacing: 1px;">VOLUME: <span id="audio-volume-display">25%</span></span>
+                                <input id="audio-volume" type="range" min="0" max="100" value="25" style="width: 100%; cursor: pointer;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Grid Management -->
+                <div class="settings-section">
+                    <h3>GRID MANAGEMENT</h3>
+                    <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+                        <button id="btn-pause" class="btn warning-btn" style="width: 100%;">PAUSE SIMULATION</button>
+                        <button id="btn-reboot" class="btn danger-btn" style="width: 100%;">REBOOT GRID</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-actions" style="margin-top: 15px; width: 100%;">
+                <button id="btn-settings-close" class="btn active" style="width: 100%;">DISMISS SYSTEM CONTROL</button>
+            </div>
+        </div>
+    </div>
+
       <script src="/static/js/game_globals.js"></script>
       <script src="/static/js/game_audio.js"></script>
       <script src="/static/js/game_init.js"></script>
       <script src="/static/js/game_three.js"></script>
      <script src="/static/js/game_ui.js"></script>
+     <script src="/static/js/game_bit.js"></script>
      <script src="/static/js/game_render_player.js"></script>
      <script src="/static/js/game_render_world.js"></script>
      <script src="/static/js/game.js"></script>

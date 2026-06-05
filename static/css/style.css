@@ -1020,7 +1020,7 @@ h3 {
     backdrop-filter: blur(12px);
     border: 1px solid rgba(189, 0, 255, 0.35);
     border-radius: 8px;
-    z-index: 50;
+    z-index: 150;
     box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6);
     transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     max-height: 40px;

@@ -26,7 +26,7 @@ start: build
 		echo "Server is already running (PID: $$(cat server.pid))"; \
 	else \
 		echo "Starting server..."; \
-		./target/release/voidgrid > server.log 2>&1 & echo $$! > server.pid; \
+		nohup ./target/release/voidgrid > server.log 2>&1 & echo $$! > server.pid; \
 		sleep 1.5; \
 		if kill -0 $$(cat server.pid) 2>/dev/null; then \
 			echo "Server started successfully (PID: $$(cat server.pid))"; \

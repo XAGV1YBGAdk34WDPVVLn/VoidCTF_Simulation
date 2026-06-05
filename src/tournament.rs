@@ -237,13 +237,19 @@ impl TournamentState {
             orange_score
         );
 
-        if idx == 0 {
-            // Update Finals Blue team
-            self.matches[2].blue_team_index = winner_idx;
-        } else if idx == 1 {
-            // Update Finals Orange team
-            self.matches[2].orange_team_index = winner_idx;
-        } else if idx == 2 {
+        if idx == 0 || idx == 1 {
+            if idx == 0 {
+                self.matches[3].blue_team_index = winner_idx;
+            } else {
+                self.matches[3].orange_team_index = winner_idx;
+            }
+        } else if idx == 2 || idx == 3 {
+            if idx == 3 {
+                self.matches[4].blue_team_index = winner_idx; // Winner of Semi-Finals
+            } else {
+                self.matches[4].orange_team_index = winner_idx; // Winner of Pool C (bye)
+            }
+        } else if idx == 4 {
             // Finals completed! Crown champion and add championship count
             self.champion_index = Some(winner_idx);
             self.teams[winner_idx].championships += 1;

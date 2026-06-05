@@ -466,9 +466,24 @@ impl GameEngine {
             );
         }
 
+        let active_match = &self.tournament.matches[self.tournament.current_match_index];
+        let blue_team = &self.tournament.teams[active_match.blue_team_index];
+        let orange_team = &self.tournament.teams[active_match.orange_team_index];
+
+        let winner_team_name = if winner_name == "blue" {
+            blue_team.name.clone()
+        } else if winner_name == "orange" {
+            orange_team.name.clone()
+        } else {
+            "Tie".to_string()
+        };
+
         let elapsed = MATCH_TIME_LIMIT - self.match_time;
         self.summary_stats = serde_json::json!({
             "winner": winner_name,
+            "winner_team_name": winner_team_name,
+            "blue_team_name": blue_team.name,
+            "orange_team_name": orange_team.name,
             "duration_seconds": elapsed as i32,
             "blue_captures": self.scores["blue"],
             "orange_captures": self.scores["orange"],

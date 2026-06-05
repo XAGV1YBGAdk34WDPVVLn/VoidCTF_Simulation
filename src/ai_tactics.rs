@@ -35,7 +35,19 @@ pub fn get_pregame_tactics(team_name: &str) -> serde_json::Value {
 }
 
 pub fn get_match_audit(match_stats: &serde_json::Value) -> String {
-    let winner = match_stats.get("winner").and_then(|v| v.as_str()).unwrap_or("Tie").to_uppercase();
+    let winner_team = match_stats.get("winner_team_name").and_then(|v| v.as_str()).unwrap_or("Tie").to_uppercase();
+    let blue_team_name = match_stats.get("blue_team_name").and_then(|v| v.as_str()).unwrap_or("Blue Team").to_string();
+    let orange_team_name = match_stats.get("orange_team_name").and_then(|v| v.as_str()).unwrap_or("Orange Team").to_string();
+
+    let winner_key = match_stats.get("winner").and_then(|v| v.as_str()).unwrap_or("tie");
+    let winner_team_lower = if winner_key == "blue" {
+        blue_team_name.clone()
+    } else if winner_key == "orange" {
+        orange_team_name.clone()
+    } else {
+        "Tie".to_string()
+    };
+
     let duration = match_stats.get("duration_seconds").and_then(|v| v.as_i64()).unwrap_or(120);
     let blue_caps = match_stats.get("blue_captures").and_then(|v| v.as_i64()).unwrap_or(0);
     let orange_caps = match_stats.get("orange_captures").and_then(|v| v.as_i64()).unwrap_or(0);
@@ -63,8 +75,8 @@ pub fn get_match_audit(match_stats: &serde_json::Value) -> String {
          MATCH RESULT: Winner - Team {}\n\
          ELAPSED GRID TIME: {} SECONDS\n\n\
          [TACTICAL MATRIX ANALYSIS]\n\
-         - Team Blue Strategy: {} (Captures: {})\n\
-         - Team Orange Strategy: {} (Captures: {})\n\n\
+         - Team {} Strategy: {} (Captures: {})\n\
+         - Team {} Strategy: {} (Captures: {})\n\n\
          [CRITICAL SUBROUTINE EVALUATION]\n\
          - Telemetry analysis indicates that Team {} successfully optimized their coordinate pathing.\n\
          - MVP routine '{}' achieved top efficiency with {} points of directed grid damage.\n\
@@ -73,6 +85,6 @@ pub fn get_match_audit(match_stats: &serde_json::Value) -> String {
          1. Adjust safety subroutines to trigger defensive retreats 10% earlier.\n\
          2. Coordinate Stalker sprint bursts to synchronize with Tactician nanite coverage.\n\
          3. Establish tighter midfield interception blocks to prevent horizontal grid bypasses.\n",
-        sub_cycle, winner, duration, blue_strategy, blue_caps, orange_strategy, orange_caps, winner, mvp_name, max_dmg
+        sub_cycle, winner_team, duration, blue_team_name, blue_strategy, blue_caps, orange_team_name, orange_strategy, orange_caps, winner_team_lower, mvp_name, max_dmg
     )
 }

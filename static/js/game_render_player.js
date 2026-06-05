@@ -98,7 +98,7 @@ function updatePlayerMesh(p, serverTime) {
         group.add(orbitShieldGroup);
         
         // Light Trail (Rendered as a 3D wall of light with volume and thickness)
-        const trailMaxPoints = 30;
+        const trailMaxPoints = 250;
         const trailGeom = new THREE.BufferGeometry();
         const trailVertices = new Float32Array(trailMaxPoints * 4 * 3);
         trailGeom.setAttribute("position", new THREE.BufferAttribute(trailVertices, 3));
@@ -151,6 +151,7 @@ function updatePlayerMesh(p, serverTime) {
             orbitShieldGroup: orbitShieldGroup,
             trailLine: trailLine,
             trailPoints: [],
+            trailMaxPoints: trailMaxPoints,
             lastPos: pyToThreeVec(p.pos),
             prevPos: pyToThreeVec(p.pos),
             targetPos: pyToThreeVec(p.pos),
@@ -188,18 +189,27 @@ function updatePlayerMesh(p, serverTime) {
     }
 
     const targetPos = pyToThreeVec(p.pos);
-    
-    // Smoothly glide position to absorb any remaining playhead or clock jitter.
+    let teleported = false;
     if (group.position.distanceTo(targetPos) > 10.0) {
         group.position.copy(targetPos);
+        teleported = true;
     } else {
         group.position.lerp(targetPos, 0.35); // 0.35 exponential lerp filter
+    }
+
+    const wasAlive = playerObj.isAlive;
+    playerObj.isAlive = p.is_alive;
+
+    if (!wasAlive && p.is_alive) {
+        playerObj.trailPoints = [];
+    }
+    if (teleported) {
+        playerObj.trailPoints = [];
     }
 
     // Save variables for tracking and other references
     playerObj.targetPos = targetPos;
     playerObj.vel = p.vel;
-    playerObj.isAlive = p.is_alive;
 
     // Sharp turn rotation (Tron style) using velocity
     const velocity = new THREE.Vector3(p.vel[0], p.vel[2], p.vel[1]);
@@ -213,15 +223,12 @@ function updatePlayerMesh(p, serverTime) {
     if (!p.is_alive) {
         if (group.visible) {
             group.visible = false;
-            trailLine.visible = false;
             // Spawn de-rez particle explosion at last coordinates
             spawnDeRezExplosion(group.position, teamColor);
         }
-        return;
+    } else {
+        group.visible = true;
     }
-    
-    group.visible = true;
-    trailLine.visible = true;
 
     // 1. Dashing & Cover & Overcharge (pulse body / hunker down)
     if (p.overcharge_timer > 0.0) {
@@ -285,39 +292,109 @@ function updatePlayerMesh(p, serverTime) {
     }
 
     // 4. Update Fading Light Trail
-    if (!lastPos.equals(group.position)) {
-        trailPoints.push(group.position.clone());
-        if (trailPoints.length > 29) trailPoints.shift();
-        lastPos.copy(group.position);
-    }
+    const now = performance.now();
+    const lifespan = 2500; // 2.5 seconds lifespan for trail segments
     
-    const positions = trailLine.geometry.attributes.position.array;
-    const colors = trailLine.geometry.attributes.color.array;
-    const pointsCount = trailPoints.length;
-    const c = new THREE.Color(teamColor);
-    for (let i = 0; i < 30; i++) {
-        const pt = trailPoints[Math.min(i, pointsCount - 1)] || group.position;
-        
-        const prevIdx = Math.max(0, i - 1);
-        const nextIdx = Math.min(pointsCount - 1, i + 1);
-        const prevPt = trailPoints[prevIdx] || group.position;
-        const nextPt = trailPoints[nextIdx] || group.position;
-        
-        let dx = nextPt.x - prevPt.x;
-        let dz = nextPt.z - prevPt.z;
-        let len = Math.sqrt(dx * dx + dz * dz);
-        
-        let nx = 1.0;
-        let nz = 0.0;
-        if (len > 0.001) {
-            nx = -dz / len;
-            nz = dx / len;
+    // Filter out expired trail points
+    playerObj.trailPoints = playerObj.trailPoints.filter(pt => now - pt.time < lifespan);
+    
+    // Only record new points if player is alive
+    if (p.is_alive) {
+        const DIST_THRESHOLD = 0.35;
+        const currentPos = group.position;
+        if (playerObj.trailPoints.length === 0) {
+            let nx = 1.0;
+            let nz = 0.0;
+            if (p.vel) {
+                let v_len = Math.sqrt(p.vel[0] * p.vel[0] + p.vel[1] * p.vel[1]);
+                if (v_len > 0.001) {
+                    nx = -p.vel[1] / v_len;
+                    nz = p.vel[0] / v_len;
+                }
+            }
+            playerObj.trailPoints.push({
+                pos: currentPos.clone(),
+                time: now,
+                nx: nx,
+                nz: nz
+            });
+        } else {
+            const lastPt = playerObj.trailPoints[playerObj.trailPoints.length - 1];
+            if (currentPos.distanceTo(lastPt.pos) > DIST_THRESHOLD) {
+                const dx = currentPos.x - lastPt.pos.x;
+                const dz = currentPos.z - lastPt.pos.z;
+                const len = Math.sqrt(dx * dx + dz * dz);
+                let nx = lastPt.nx;
+                let nz = lastPt.nz;
+                if (len > 0.001) {
+                    nx = -dz / len;
+                    nz = dx / len;
+                }
+                playerObj.trailPoints.push({
+                    pos: currentPos.clone(),
+                    time: now,
+                    nx: nx,
+                    nz: nz
+                });
+            }
+        }
+    }
+
+    // Assemble render points: historical trail points + current player position as head
+    const renderPoints = [];
+    playerObj.trailPoints.forEach(pt => renderPoints.push(pt));
+    
+    if (p.is_alive) {
+        let headNx = 1.0;
+        let headNz = 0.0;
+        if (playerObj.trailPoints.length > 0) {
+            const lastPt = playerObj.trailPoints[playerObj.trailPoints.length - 1];
+            const dx = group.position.x - lastPt.pos.x;
+            const dz = group.position.z - lastPt.pos.z;
+            const len = Math.sqrt(dx * dx + dz * dz);
+            if (len > 0.001) {
+                headNx = -dz / len;
+                headNz = dx / len;
+            } else {
+                headNx = lastPt.nx;
+                headNz = lastPt.nz;
+            }
         } else if (p.vel) {
             let v_len = Math.sqrt(p.vel[0] * p.vel[0] + p.vel[1] * p.vel[1]);
             if (v_len > 0.001) {
-                nx = -p.vel[1] / v_len;
-                nz = p.vel[0] / v_len;
+                headNx = -p.vel[1] / v_len;
+                headNz = p.vel[0] / v_len;
             }
+        }
+        renderPoints.push({
+            pos: group.position.clone(),
+            time: now,
+            nx: headNx,
+            nz: headNz
+        });
+    }
+
+    // Render trail using BufferGeometry
+    const positions = trailLine.geometry.attributes.position.array;
+    const colors = trailLine.geometry.attributes.color.array;
+    const c = new THREE.Color(teamColor);
+    const maxPts = positions.length / 12;
+    
+    for (let i = 0; i < maxPts; i++) {
+        let pt, nx, nz, alpha;
+        
+        if (i < renderPoints.length) {
+            pt = renderPoints[i].pos;
+            nx = renderPoints[i].nx;
+            nz = renderPoints[i].nz;
+            const age = now - renderPoints[i].time;
+            alpha = Math.max(0.0, Math.min(1.0, 1.0 - (age / lifespan)));
+        } else {
+            // Collapse unused vertices to group position with zero width/alpha
+            pt = group.position;
+            nx = 0.0;
+            nz = 0.0;
+            alpha = 0.0;
         }
         
         const width = 0.22;
@@ -339,7 +416,6 @@ function updatePlayerMesh(p, serverTime) {
         positions[baseIdx + 10] = pt.y + 1.0;
         positions[baseIdx + 11] = pt.z - nz * width;
         
-        const alpha = i / 29.0;
         for (let v = 0; v < 4; v++) {
             const colorIdx = 16 * i + 4 * v;
             colors[colorIdx] = c.r;
@@ -348,8 +424,12 @@ function updatePlayerMesh(p, serverTime) {
             colors[colorIdx + 3] = alpha;
         }
     }
+    
     trailLine.geometry.attributes.position.needsUpdate = true;
     trailLine.geometry.attributes.color.needsUpdate = true;
+    
+    // Maintain visibility as long as there are segments to render
+    trailLine.visible = (renderPoints.length > 1);
 }
 
 function updateHealingBeam(healer) {

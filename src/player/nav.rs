@@ -1,5 +1,5 @@
 use crate::math;
-use crate::world::{Building, Platform};
+use crate::world::{Building, Platform, Ramp};
 
 pub fn check_line_of_sight(
     p1: [f32; 3],
@@ -122,6 +122,7 @@ pub fn get_navigation_target(
     target_pos: [f32; 3],
     buildings: &[Building],
     platforms: Option<&[Platform]>,
+    ramps: Option<&[Ramp]>,
 ) -> [f32; 3] {
     let mut all_obstacles = buildings.to_vec();
     if let Some(plats) = platforms {
@@ -136,6 +137,35 @@ pub fn get_navigation_target(
                     d: p.d,
                     z: 0.0,
                     h: p.z,
+                });
+            }
+        }
+    }
+
+    if let Some(rmps) = ramps {
+        for r in rmps {
+            let r_max_z = r.z1.max(r.z2);
+            // If the ramp is higher than the player by more than 2.5 units, treat its sides as obstacles
+            if r_max_z > p_pos[2] + 2.5 {
+                // Bottom wall along Y = r.y1
+                all_obstacles.push(Building {
+                    id: format!("ramp_side_bot_{}", r.id),
+                    x: r.x1,
+                    y: r.y1 - 1.0,
+                    w: r.x2 - r.x1,
+                    d: 1.0,
+                    z: 0.0,
+                    h: r_max_z,
+                });
+                // Top wall along Y = r.y2
+                all_obstacles.push(Building {
+                    id: format!("ramp_side_top_{}", r.id),
+                    x: r.x1,
+                    y: r.y2,
+                    w: r.x2 - r.x1,
+                    d: 1.0,
+                    z: 0.0,
+                    h: r_max_z,
                 });
             }
         }

@@ -430,7 +430,13 @@ impl Player {
             routing_target[1] = routing_target[1].clamp(-95.0, 95.0);
         }
 
-        let nav_target = get_navigation_target(self.pos, routing_target, &map_layout.buildings, Some(&map_layout.platforms));
+        let nav_target = get_navigation_target(
+            self.pos,
+            routing_target,
+            &map_layout.buildings,
+            Some(&map_layout.platforms),
+            Some(&map_layout.ramps),
+        );
         let to_target = math::sub(nav_target, self.pos);
         let distance = math::length(to_target);
 

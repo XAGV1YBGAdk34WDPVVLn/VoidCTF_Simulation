@@ -80,14 +80,44 @@ impl TournamentState {
                 match_losses: 0,
                 championships: 0,
             },
+            TournamentTeam {
+                name: "Solar Flare".to_string(),
+                color_name: "yellow".to_string(),
+                primary_hex: "#ffff00".to_string(),
+                strategy_archetype: "RUSH".to_string(),
+                description: "High-velocity solar blitzers. Relies on speed and intense solar bursts.".to_string(),
+                match_wins: 0,
+                match_losses: 0,
+                championships: 0,
+            },
+            TournamentTeam {
+                name: "Apex Shadow".to_string(),
+                color_name: "red".to_string(),
+                primary_hex: "#ff3333".to_string(),
+                strategy_archetype: "TURTLE".to_string(),
+                description: "Stealth and defensive agents. Moves from the shadows to guard the base.".to_string(),
+                match_wins: 0,
+                match_losses: 0,
+                championships: 0,
+            },
         ];
+
+        use rand::seq::SliceRandom;
+        let mut indices = (0..teams.len()).collect::<Vec<usize>>();
+        let mut rng = rand::thread_rng();
+        indices.shuffle(&mut rng);
+
+        let pool_a_blue = indices[0];
+        let pool_a_orange = indices[1];
+        let pool_b_blue = indices[2];
+        let pool_b_orange = indices[3];
 
         let matches = vec![
             TournamentMatch {
                 id: 0,
                 name: "Pool A".to_string(),
-                blue_team_index: 0,   // Aero Strike
-                orange_team_index: 1, // Neon Aegis
+                blue_team_index: pool_a_blue,
+                orange_team_index: pool_a_orange,
                 winner_team_index: None,
                 blue_score: None,
                 orange_score: None,
@@ -96,8 +126,8 @@ impl TournamentState {
             TournamentMatch {
                 id: 1,
                 name: "Pool B".to_string(),
-                blue_team_index: 2,   // Grid Reapers
-                orange_team_index: 3, // Plasma Void
+                blue_team_index: pool_b_blue,
+                orange_team_index: pool_b_orange,
                 winner_team_index: None,
                 blue_score: None,
                 orange_score: None,
@@ -106,7 +136,7 @@ impl TournamentState {
             TournamentMatch {
                 id: 2,
                 name: "Finals".to_string(),
-                blue_team_index: 0,   // Placeholder (updated dynamically)
+                blue_team_index: 0,   // Placeholder
                 orange_team_index: 0, // Placeholder
                 winner_team_index: None,
                 blue_score: None,
@@ -128,12 +158,22 @@ impl TournamentState {
 
     /// Reset for a brand new tournament, preserving historic team wins and losses
     pub fn reset_tournament(&mut self) {
+        use rand::seq::SliceRandom;
+        let mut indices = (0..self.teams.len()).collect::<Vec<usize>>();
+        let mut rng = rand::thread_rng();
+        indices.shuffle(&mut rng);
+
+        let pool_a_blue = indices[0];
+        let pool_a_orange = indices[1];
+        let pool_b_blue = indices[2];
+        let pool_b_orange = indices[3];
+
         self.matches = vec![
             TournamentMatch {
                 id: 0,
                 name: "Pool A".to_string(),
-                blue_team_index: 0,
-                orange_team_index: 1,
+                blue_team_index: pool_a_blue,
+                orange_team_index: pool_a_orange,
                 winner_team_index: None,
                 blue_score: None,
                 orange_score: None,
@@ -142,8 +182,8 @@ impl TournamentState {
             TournamentMatch {
                 id: 1,
                 name: "Pool B".to_string(),
-                blue_team_index: 2,
-                orange_team_index: 3,
+                blue_team_index: pool_b_blue,
+                orange_team_index: pool_b_orange,
                 winner_team_index: None,
                 blue_score: None,
                 orange_score: None,
@@ -152,8 +192,8 @@ impl TournamentState {
             TournamentMatch {
                 id: 2,
                 name: "Finals".to_string(),
-                blue_team_index: 0,
-                orange_team_index: 0,
+                blue_team_index: 0,   // Placeholder
+                orange_team_index: 0, // Placeholder
                 winner_team_index: None,
                 blue_score: None,
                 orange_score: None,

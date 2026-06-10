@@ -11,7 +11,7 @@ echo "=== VOID GRID CTF INITIALIZER ==="
 echo "Compiling Void Grid server..."
 cargo build --release
 
-echo "Launching Void Grid Rust server at http://localhost:8080/"
+echo "Launching Void Grid Rust server at http://localhost:8082/"
 echo "Open your browser to start the simulation!"
 echo "Press Ctrl+C to shutdown grid."
 

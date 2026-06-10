@@ -30,7 +30,7 @@ start: build
 		sleep 1.5; \
 		if kill -0 $$(cat server.pid) 2>/dev/null; then \
 			echo "Server started successfully (PID: $$(cat server.pid))"; \
-			echo "Access it at http://localhost:8080/"; \
+			echo "Access it at http://localhost:8082/"; \
 			echo "Logs are being written to server.log"; \
 		else \
 			echo "Failed to start server. Check server.log for details."; \
@@ -70,7 +70,7 @@ stop:
 status:
 	@if [ -f server.pid ] && kill -0 $$(cat server.pid) 2>/dev/null; then \
 		echo "Server is RUNNING (PID: $$(cat server.pid))"; \
-		echo "URL: http://localhost:8080/"; \
+		echo "URL: http://localhost:8082/"; \
 	else \
 		echo "Server is STOPPED"; \
 	fi

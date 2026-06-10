@@ -53,4 +53,4 @@ make start
 
 ### 2. View the Grid
 Open your web browser to:
-[http://localhost:8080/](http://localhost:8080/)
+[http://localhost:8082/](http://localhost:8082/)

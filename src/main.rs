@@ -67,7 +67,7 @@ async fn main() {
         .route("/", get(index_handler))
         .with_state(state);
 
-    let port = 8080;
+    let port = 8082;
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port))
         .await
         .unwrap();

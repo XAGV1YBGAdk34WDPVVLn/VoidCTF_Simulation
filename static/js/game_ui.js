@@ -290,8 +290,8 @@ function updateHUD(gameState) {
             }
             logBox.appendChild(div);
 
-            // Trigger synthesized sound effects based on log content
-            if (window.gridAudio) {
+            // Trigger synthesized sound effects based on log content (only for new events, not during initial history catchup)
+            if (window.gridAudio && logOffset > 0) {
                 if (log.includes("SCORE!")) {
                     window.gridAudio.playScore();
                     if (window.gridBit) window.gridBit.triggerYes();
@@ -316,6 +316,19 @@ function updateHUD(gameState) {
         if (wasScrolledToBottom) {
             logBox.scrollTop = logBox.scrollHeight;
         }
+    }
+}
+
+function addLocalLogEntry(htmlString) {
+    const logBox = document.getElementById("match-log");
+    if (!logBox) return;
+    const wasScrolledToBottom = logBox.scrollHeight - logBox.clientHeight <= logBox.scrollTop + 10;
+    const div = document.createElement("div");
+    div.className = "log-entry";
+    div.innerHTML = htmlString;
+    logBox.appendChild(div);
+    if (wasScrolledToBottom) {
+        logBox.scrollTop = logBox.scrollHeight;
     }
 }
 
@@ -374,8 +387,23 @@ function typewriteText(element, text) {
     }, 15); // Fast typing speed
 }
 
+let lastTournamentJSON = "";
+
 function updateTournamentBracket(tournament, state) {
     if (!tournament || !tournament.matches || tournament.matches.length < 7 || !tournament.teams) return;
+    
+    // Check if tournament data has actually changed before thrashing the DOM
+    const currentJSON = JSON.stringify({
+        current_match_index: tournament.current_match_index,
+        champion_index: tournament.champion_index,
+        matches: tournament.matches.map(m => ({ is_completed: m.is_completed, blue_score: m.blue_score, orange_score: m.orange_score })),
+        state: state
+    });
+    
+    if (currentJSON === lastTournamentJSON) {
+        return; // Skip DOM update if nothing changed!
+    }
+    lastTournamentJSON = currentJSON;
     
     // Auto expand/collapse based on game state
     const panel = document.getElementById("tournament-bracket-panel");

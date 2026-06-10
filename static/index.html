@@ -92,6 +92,42 @@
                 <canvas id="bit-canvas" width="100" height="100" style="width: 100px; height: 100px; display: block; margin: 0 auto; background: transparent; border: 1px solid rgba(0, 240, 255, 0.2); border-radius: 50%; box-shadow: 0 0 10px rgba(0, 240, 255, 0.15); cursor: pointer;"></canvas>
             </section>
 
+            <!-- Twitch Integration Panel -->
+            <section id="twitch-panel" class="hud-panel twitch-panel hidden">
+                <h2 class="twitch-purple-glow">TWITCH CONNECTOR</h2>
+                <div class="twitch-control-group" style="padding: 10px; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px; background: rgba(0, 0, 0, 0.25);">
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; gap: 6px;">
+                            <input type="text" id="twitch-channel" placeholder="channel_name" class="twitch-input">
+                            <button id="btn-twitch-connect" class="btn btn-twitch-connect active">CONNECT</button>
+                        </div>
+                        <div id="twitch-status-label" style="font-family: var(--font-mono); font-size: 9px; color: #cbd5e0; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; display: flex; align-items: center;">
+                            <span id="twitch-status-dot" class="twitch-status-indicator twitch-status-disconnected"></span>
+                            STATUS: <span id="twitch-status-text" style="color: #ff3300; margin-left: 4px;">DISCONNECTED</span>
+                        </div>
+                        <div class="twitch-options" style="display: flex; flex-direction: column; gap: 5px; text-align: left; margin-top: 4px; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 6px;">
+                            <label class="switch-container" style="font-size: 9px;">
+                                <input type="checkbox" id="twitch-allow-strategies">
+                                <span class="switch-slider"></span>
+                                <span class="switch-label">Allow strategy chat commands</span>
+                            </label>
+                            <label class="switch-container" style="font-size: 9px; margin-top: 2px;">
+                                <input type="checkbox" id="twitch-allow-bit">
+                                <span class="switch-slider"></span>
+                                <span class="switch-label">Allow Grid Bit chat control</span>
+                            </label>
+                        </div>
+                        <div style="font-family: var(--font-mono); font-size: 8px; color: #a2a8b9; text-transform: uppercase; text-align: left; margin-top: 4px; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4px;">
+                            SYSTEM TELEMETRY
+                        </div>
+                        <div id="twitch-telemetry" class="twitch-mini-terminal">
+                            <div class="twitch-mini-entry" style="color: #718096;">[SYS] Awaiting connection...</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+
             <section class="hud-panel system-log-panel">
                 <h2>GRID EVENTS</h2>
                 <div id="match-log" class="terminal-scroller">
@@ -284,6 +320,7 @@
      <script src="/static/js/game_bit.js"></script>
       <script src="/static/js/game_render_player.js?v=1.1.0"></script>
      <script src="/static/js/game_render_world.js"></script>
+     <script src="/static/js/game_twitch.js"></script>
      <script src="/static/js/game.js"></script>
 </body>
 </html>

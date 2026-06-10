@@ -348,8 +348,14 @@ function updateCamera(dt) {
         if (keyStates['KeyS']) camera.position.addScaledVector(forward, -moveSpeed);
         if (keyStates['KeyA']) camera.position.addScaledVector(right, -moveSpeed);
         if (keyStates['KeyD']) camera.position.addScaledVector(right, moveSpeed);
-        if (keyStates['Space']) camera.position.y += moveSpeed;
-        if (keyStates['ShiftLeft']) camera.position.y -= moveSpeed;
+        if (keyStates['Space']) {
+            camera.position.y += moveSpeed;
+            orbitControls.target.y += moveSpeed;
+        }
+        if (keyStates['ShiftLeft']) {
+            camera.position.y -= moveSpeed;
+            orbitControls.target.y -= moveSpeed;
+        }
         
         orbitControls.target.addScaledVector(forward, (keyStates['KeyW']?moveSpeed:0) - (keyStates['KeyS']?moveSpeed:0));
         orbitControls.target.addScaledVector(right, (keyStates['KeyD']?moveSpeed:0) - (keyStates['KeyA']?moveSpeed:0));

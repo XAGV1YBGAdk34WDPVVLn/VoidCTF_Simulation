@@ -40,7 +40,7 @@ async fn main() {
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
         .finish();
-    tracing::subscriber::set_global_default(subscriber).expect("Setting default subscriber failed");
+    let _ = tracing::subscriber::set_global_default(subscriber);
 
     let engine = Arc::new(Mutex::new(crate::engine::GameEngine::new()));
     let clients = Arc::new(Mutex::new(Vec::new()));

@@ -243,6 +243,15 @@ function setupEventListeners() {
         cameraMode = "ghost";
         btnGhost.classList.add("active");
         btnAction.classList.remove("active");
+        
+        // Reset orbitControls target to be a comfortable distance (e.g. 50 units) directly in front of the camera.
+        // This prevents the camera from snapping or spinning due to outdated targets when exiting Action Cam.
+        if (orbitControls && camera) {
+            const dir = new THREE.Vector3();
+            camera.getWorldDirection(dir);
+            orbitControls.target.copy(camera.position).addScaledVector(dir, 50.0);
+            orbitControls.update();
+        }
     });
 
     btnAction.addEventListener("click", () => {
@@ -393,5 +402,11 @@ function setupEventListeners() {
         if (['KeyW', 'KeyS', 'KeyA', 'KeyD', 'Space', 'ShiftLeft'].includes(e.code)) {
             keyStates[e.code] = false;
         }
+    });
+
+    window.addEventListener("blur", () => {
+        // Clear all key states when tab loses focus (e.g. on Ctrl-Shift-T, Alt-Tab)
+        // to prevent keys like ShiftLeft from getting stuck in a pressed state
+        keyStates = {};
     });
 }
